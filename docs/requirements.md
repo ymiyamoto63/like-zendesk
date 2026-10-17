@@ -1,7 +1,7 @@
 # 要件定義書
 
 - 対象: like-zendesk（Zendesk ライクなインシデント／チケット管理システム）
-- 版: v0.2（2026-10-17）
+- 版: v0.3（2026-10-17）
 - 状態: スコープ確定。「10. 決定事項」の内容を反映済み。「11. 残りの論点」は既定値で進め、異論があれば変更する。
 
 ## 1. 目的
@@ -199,10 +199,30 @@ TicketEvent(id, tenant_id, ticket_id, actor_id, field, from, to, created_at)   -
 View(id, tenant_id, owner_id?, name, conditions, sort, shared: bool)
 ```
 
-- すべてのテーブルに `tenant_id` を持たせる。テナント分離は PostgreSQL の行レベルセキュリティ（RLS）で強制し、アプリケーションのクエリ漏れがあっても他テナントの行が返らないようにする。
+- すべてのテーブルに `tenant_id` を持たせる。テナント分離と依頼者の閲覧制限は、SQL クエリの条件で制御する（「6.1 可視性制御」）。
+- テナントをまたぐ参照を防ぐため、外部キーは `(tenant_id, id)` の複合キーで張る（例: `Ticket(tenant_id, assignee_id)` → `User(tenant_id, id)`）。
 - 一意制約: `Tenant.slug` はサービス全体で一意。`User` の `(tenant_id, email)` と `Ticket` の `(tenant_id, number)` はテナント内で一意。
 - `assignee_id` があれば、その担当者は `group_id` のグループに属していること（F-T-6）。
 - チケットの本文は最初の公開コメントとして保存する（Zendesk と同じ扱い）。
+
+### 6.1 可視性制御
+
+PostgreSQL の行レベルセキュリティ（RLS）は使わない。誰に何が見えるかは、アプリケーションが発行する SQL の WHERE 句で決める。
+
+- リクエストごとに、認証情報から「閲覧者」（`Viewer`: テナント ID、ユーザー ID、ロール）を作る。テナント ID は URL のテナント識別子とログインユーザーの所属が一致した場合だけ確定し、一致しなければ 404 を返す。
+- テナントのデータを読み書きするリポジトリのメソッドは、すべて `Viewer` を必須の引数に取る。`Viewer` なしでテナントのデータを取得する手段を用意しない。
+- 可視性の条件は、エンティティごとに 1 か所（可視性条件を組み立てる関数）で定義し、各クエリはそれを WHERE 句に結合する。
+
+| 対象 | エージェント・管理者 | 依頼者 |
+| --- | --- | --- |
+| チケット | `tenant_id = :viewer_tenant` | `tenant_id = :viewer_tenant AND requester_id = :viewer_user` |
+| コメント | `tenant_id = :viewer_tenant` | 上記のチケット条件 `AND public = true` |
+| 添付 | 親コメントの条件に従う | 親コメントの条件に従う |
+| 監査ログ | `tenant_id = :viewer_tenant` | 閲覧不可 |
+| ユーザー・グループ・ビュー | `tenant_id = :viewer_tenant` | 自分自身のみ |
+
+- 更新・削除の SQL にも同じ条件を付け、更新件数が 0 件なら 404 とする。他テナントの ID を指定されても、存在しない場合と区別できない応答を返す。
+- 次の 3 つで条件漏れを検出する。(1) 可視性条件を組み立てる関数の単体テスト。(2) 全 API エンドポイントについて、他テナント・他依頼者の ID を指定して 404 になることを確かめる結合テスト。(3) リポジトリ層の公開メソッドが `Viewer` を引数に取ることを検査するアーキテクチャテスト（ArchUnit）。
 
 ## 7. ステータス遷移
 
@@ -240,7 +260,7 @@ Zendesk の標準ステータスに合わせる。
 | N-1 | 性能 | チケット 10 万件のテナントで、チケット一覧・詳細の API 応答が 500ms 以内（ローカル環境、95 パーセンタイル）。 |
 | N-2 | 性能 | 同条件で、全文検索の API 応答が 1 秒以内（95 パーセンタイル）。 |
 | N-3 | セキュリティ | 認証はメールアドレスとパスワード。パスワードは bcrypt でハッシュ化する。セッションは HttpOnly Cookie で管理し、CSRF 対策を行う。 |
-| N-4 | セキュリティ | テナント分離（F-X-3）と依頼者のアクセス制限（他人のチケット、社内メモ）を API レベルで強制し、結合テストで検証する。 |
+| N-4 | セキュリティ | テナント分離（F-X-3）と依頼者のアクセス制限（他人のチケット、社内メモ）を SQL の可視性条件（6.1）で強制し、結合テストで検証する。 |
 | N-5 | セキュリティ | OWASP Top 10 の対策を行う。Markdown 表示時の XSS、添付ファイルのパス・種別を検証する。 |
 | N-6 | 対応環境 | エージェント画面: 最新の Chrome / Edge / Safari / Firefox（PC）。ポータル: 加えてスマートフォンのブラウザ。 |
 | N-7 | 開発環境 | `docker compose up` の 1 コマンドで、DB、API、フロントエンド、メール確認用サーバー（Mailpit）が起動する。 |
@@ -253,10 +273,10 @@ Zendesk の標準ステータスに合わせる。
 | 層 | 採用技術 |
 | --- | --- |
 | フロントエンド | Vue 3（Composition API）、TypeScript、Vite、Vue Router、Pinia |
-| バックエンド | Java 21、Spring Boot 3、Spring Security、Spring Data JPA、Gradle |
-| データベース | PostgreSQL 16（RLS によるテナント分離、pg_bigm による日本語全文検索）、Flyway によるマイグレーション |
+| バックエンド | Java 25、Spring Boot 4、Spring Security、Spring JDBC（`JdbcClient` で SQL を明示的に記述）、Gradle |
+| データベース | PostgreSQL 18（pg_bigm による日本語全文検索）、Flyway によるマイグレーション |
 | API | REST（JSON）、springdoc-openapi による OpenAPI 生成。フロントエンドの API クライアント型は OpenAPI から生成する。 |
-| テスト | JUnit 5、Testcontainers（PostgreSQL）、Vitest、Playwright |
+| テスト | JUnit、Testcontainers（PostgreSQL）、ArchUnit、Vitest、Playwright |
 | 実行環境 | Docker Compose、Mailpit（開発用メール受信） |
 
 ## 9. 受け入れ基準（MVP 完了の判定）
@@ -286,7 +306,7 @@ v0.1 の未決事項への回答（2026-10-17）。
 | Q1 | 主な用途 | 社外顧客サポートと社内 IT ヘルプデスクの両方 |
 | Q2 | 提供形態 | 多テナント SaaS |
 | Q3 | MVP のチャネル | Web ポータルのみ。メール受信は第 2 段階 |
-| Q4 | 技術スタック | TypeScript + Vue 3 / Java Spring Boot / PostgreSQL |
+| Q4 | 技術スタック | TypeScript + Vue 3 / Java 25 + Spring Boot 4 / PostgreSQL 18 |
 | Q5 | 閲覧範囲 | エージェントはテナント内の全チケットを閲覧できる |
 | Q6 | SLA | MVP に入れない |
 | Q7 | 目的 | ポートフォリオ |
@@ -298,6 +318,7 @@ v0.1 の未決事項への回答（2026-10-17）。
 | ID | 論点 | 既定値 | 理由 |
 | --- | --- | --- | --- |
 | R1 | テナントの URL 形式 | パス方式（`/t/{識別子}/...`） | ローカル環境とデモ環境でワイルドカード DNS や証明書が要らない。サブドメイン方式は後から追加できる。 |
-| R2 | テナント分離の方式 | 共有スキーマ＋`tenant_id`＋RLS | テナント数が増えても運用が単純。スキーマ分離や DB 分離より実装量が少なく、RLS で安全性も示せる。 |
+| R2 | テナント分離の方式 | 共有スキーマ＋`tenant_id`＋SQL の可視性条件（RLS は使わない） | 2026-10-17 に決定。可視性のルールがアプリケーションのコードとテストに集まり、読んで確かめられる。 |
 | R3 | 公開デモ環境 | MVP では用意しない（ローカル起動のみ） | デプロイ先は MVP 完成後に決める。 |
 | R4 | テナント作成の制限 | 誰でも作成できる | ポートフォリオの閲覧者が自分で試せる。 |
+| R5 | データアクセス方式 | Spring JDBC（`JdbcClient`）で SQL を手書きする | 可視性条件を SQL に明示するため。JPA の派生クエリは条件の付け忘れが見えにくい。jOOQ や MyBatis に変えてもよい。 |
