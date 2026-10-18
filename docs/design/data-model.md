@@ -415,4 +415,4 @@ CREATE INDEX outbox_pending           ON notification_outbox (next_attempt_at) W
 ## 5. マイグレーションとデータ投入
 
 - Flyway のバージョン付きマイグレーション（`V1__init.sql` …）で管理する。
-- デモデータ（F-D-1）と 10 万件の生成（F-D-2）は、マイグレーションではなく `devtools` のコマンドで投入する（`./gradlew :backend:bootRun --args='--seed=demo'` など）。本番相当の環境に誤って入らないようにするため。
+- デモデータ（F-D-1）と 10 万件の生成（F-D-2）は、マイグレーションではなく `devtools` のコマンドで投入する（`./mvnw spring-boot:run -Dspring-boot.run.arguments=--seed=demo` など）。本番相当の環境に誤って入らないようにするため。

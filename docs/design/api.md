@@ -220,7 +220,7 @@ POST /api/t/{slug}/tickets/123/comments
 
 ## 4. OpenAPI とフロントエンドの型
 
-- バックエンドのテスト中に `/api/docs` の内容を `frontend/src/api/openapi.json` に書き出す Gradle タスクを用意し、ファイルをコミットする。
+- バックエンドのテスト中に `/api/docs` の内容を `frontend/src/api/openapi.json` に書き出す Maven の設定（`verify` フェーズで springdoc-openapi-maven-plugin を実行）を用意し、ファイルをコミットする。
 - フロントエンドは `openapi-typescript` でこのファイルから型を生成し、`openapi-fetch` で呼び出す。
 - CI で、生成した `openapi.json` とコミット済みのファイルの差分がないことを確かめる。API を変えたのにフロントエンドの型が古いままになることを防ぐ。
 - テナント分離の結合テスト（[アーキテクチャ設計 2.3](architecture.md#23-可視性条件)）も、この OpenAPI 定義からエンドポイントの一覧を取り出す。

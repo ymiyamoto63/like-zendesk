@@ -36,7 +36,7 @@ like-zendesk/
 ├── docker/
 │   ├── postgres/Dockerfile        # PostgreSQL 18 + pg_bigm
 │   └── web/                       # nginx 設定、フロントエンドのビルド
-├── backend/                       # Spring Boot（Gradle）
+├── backend/                       # Spring Boot（Maven）
 ├── frontend/                      # Vue 3（Vite）
 ├── e2e/                           # Playwright（受け入れ基準のシナリオ）
 ├── docs/
@@ -268,7 +268,7 @@ RFC 9457（`application/problem+json`）で返す。`code` に機械可読な理
 
 GitHub Actions で、プルリクエストごとに次を実行する。
 
-1. backend: `./gradlew check`（コンパイル、Spotless、単体・アーキテクチャ・結合テスト）
+1. backend: `./mvnw verify`（コンパイル、Spotless、Surefire による単体・アーキテクチャテスト、Failsafe による結合テスト）
 2. frontend: `npm ci`、lint（ESLint）、型チェック（`vue-tsc`）、Vitest
 3. OpenAPI の差分検査: バックエンドから生成した `openapi.json` と、コミット済みのファイルが一致すること（フロントエンドの型生成元がずれていないこと）
 4. e2e: `docker compose up` → Playwright
