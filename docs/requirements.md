@@ -277,7 +277,7 @@ Zendesk の標準ステータスに合わせる。
 | 層 | 採用技術 |
 | --- | --- |
 | フロントエンド | Vue 3（Composition API）、TypeScript、Vite、Vue Router、Pinia |
-| バックエンド | Java 25、Spring Boot 4、Spring Security、Spring JDBC（`JdbcClient` で SQL を明示的に記述）、Gradle |
+| バックエンド | Java 25、Spring Boot 4、Spring Security、Spring JDBC（`JdbcClient` で SQL を明示的に記述）、Maven（Maven Wrapper） |
 | データベース | PostgreSQL 18（pg_bigm による日本語全文検索）、Flyway によるマイグレーション |
 | API | REST（JSON）、springdoc-openapi による OpenAPI 生成。フロントエンドの API クライアント型は OpenAPI から生成する。 |
 | テスト | JUnit、Testcontainers（PostgreSQL）、ArchUnit、Vitest、Playwright |
@@ -314,6 +314,7 @@ v0.1 の未決事項への回答（2026-10-17）。
 | Q5 | 閲覧範囲 | エージェントはテナント内の全チケットを閲覧できる |
 | Q6 | SLA | MVP に入れない |
 | Q7 | 目的 | ポートフォリオ |
+| Q8 | バックエンドのビルドツール | Maven（2026-10-18 決定。Gradle から変更） |
 
 ## 11. 残りの論点（既定値で進める）
 
