@@ -1,0 +1,64 @@
+# docker compose up --build で全体を起動し、http://localhost:8080 を開く。
+# パスワードは開発用の既定値。変える場合は .env に書く（.env.example を参照）。
+name: like-zendesk
+
+services:
+  db:
+    build: docker/postgres
+    environment:
+      POSTGRES_DB: likezendesk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      APP_OWNER_PASSWORD: ${APP_OWNER_PASSWORD:-app_owner}
+      APP_RUNTIME_PASSWORD: ${APP_RUNTIME_PASSWORD:-app_runtime}
+    ports:
+      # API をローカルで動かす開発時（./mvnw spring-boot:run）に使う
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "likezendesk"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/likezendesk
+      SPRING_DATASOURCE_PASSWORD: ${APP_RUNTIME_PASSWORD:-app_runtime}
+      SPRING_FLYWAY_PASSWORD: ${APP_OWNER_PASSWORD:-app_owner}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/localhost/8081 &&
+          printf 'GET /api/actuator/health HTTP/1.0\r\n\r\n' >&3 &&
+          grep -q '"status":"UP"' <&3
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  db-data:
