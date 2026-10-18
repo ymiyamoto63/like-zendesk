@@ -1,8 +1,8 @@
 # 要件定義書
 
 - 対象: like-zendesk（Zendesk ライクなインシデント／チケット管理システム）
-- 版: v0.3（2026-10-17）
-- 状態: スコープ確定。「10. 決定事項」の内容を反映済み。「11. 残りの論点」は既定値で進め、異論があれば変更する。
+- 版: v0.4（2026-10-18）
+- 状態: スコープ確定。「10. 決定事項」の内容を反映済み。「11. 残りの論点」は既定値で進め、異論があれば変更する。6 章のデータモデルは設計（[docs/design/](design/README.md)）に合わせて更新済み。
 
 ## 1. 目的
 
@@ -186,18 +186,22 @@
 ## 6. データモデル概要
 
 ```
-Tenant(id, slug, name, requester_signup: open|domain_restricted, allowed_domains[], created_at)
+Tenant(id, slug, name, requester_signup: open|domain_restricted, allowed_domains[], next_ticket_number, created_at)
 User(id, tenant_id, name, email, role: requester|agent|admin, organization_id?, active)
 Organization(id, tenant_id, name)                         -- 依頼者の所属組織 (F-A-4)
-Group(id, tenant_id, name)
+AgentGroup(id, tenant_id, name)                           -- テーブル名 agent_groups（group は予約語）
 GroupMembership(tenant_id, user_id, group_id)
 Ticket(id, tenant_id, number, subject, requester_id, status, priority, type,
-       group_id?, assignee_id?, tags[], created_at, updated_at, solved_at?, closed_at?)
+       group_id?, assignee_id?, tags[], follow_up_of?, version, created_at, updated_at, solved_at?, closed_at?)
 Comment(id, tenant_id, ticket_id, author_id, body, public: bool, created_at)
-Attachment(id, tenant_id, comment_id, filename, size, storage_key)
-TicketEvent(id, tenant_id, ticket_id, actor_id, field, from, to, created_at)   -- 監査ログ
-View(id, tenant_id, owner_id?, name, conditions, sort, shared: bool)
+Attachment(id, tenant_id, comment_id?, uploader_id, filename, content_type, size, storage_key)
+TicketEvent(id, tenant_id, ticket_id, change_id, actor_id?, field, from, to, created_at)   -- 監査ログ
+View(id, tenant_id, owner_id?, name, conditions, sort)    -- owner_id が NULL なら共有ビュー
+UserToken(id, tenant_id, user_id, purpose, token_hash, expires_at, used_at?)            -- 招待・メール確認・パスワード再設定
+NotificationOutbox(id, tenant_id, kind, recipient_id, payload, state, attempts, ...)   -- 通知メールの送信待ち
 ```
+
+詳細なテーブル定義、制約、インデックスは [データモデル設計](design/data-model.md) を正とする。
 
 - すべてのテーブルに `tenant_id` を持たせる。テナント分離と依頼者の閲覧制限は、SQL クエリの条件で制御する（「6.1 可視性制御」）。
 - テナントをまたぐ参照を防ぐため、外部キーは `(tenant_id, id)` の複合キーで張る（例: `Ticket(tenant_id, assignee_id)` → `User(tenant_id, id)`）。
