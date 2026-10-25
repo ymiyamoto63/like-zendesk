@@ -381,6 +381,11 @@ CREATE TABLE notification_outbox (
 
 - `user_tokens` は、トークンからテナントとユーザーを引く唯一の入口であり、トークンのハッシュで検索する。
 
+### 3.8 セッション・ログイン失敗
+
+- Spring Session JDBC の `spring_session` と `spring_session_attributes`（定義は Spring Session 付属のものと同じ）。セッションの属性に「テナント ID → ユーザー ID」の対応を保存する（[アーキテクチャ設計 2.8](architecture.md#28-認証とセッション)）。
+- `login_failures(tenant_id, id, email, failed_at)`: ログイン失敗の記録。テナント＋メールアドレスごとに直近 15 分の件数を数え、10 回以上なら 429 を返す。存在しないメールアドレスも同じように記録するため、`users` への外部キーは張らない。ログインに成功したら、そのメールアドレスの記録を消す。
+
 ## 4. インデックス
 
 要件 N-1（一覧・詳細 500ms 以内）と N-2（全文検索 1 秒以内）を、10 万件のテナントで満たすためのもの。

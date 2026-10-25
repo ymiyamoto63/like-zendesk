@@ -16,8 +16,10 @@
     <properties>
         <java.version>25</java.version>
         <archunit.version>1.5.1</archunit.version>
+        <springdoc.version>3.1.1</springdoc.version>
         <spotless.version>3.10.4</spotless.version>
         <postgres.test.image>likezendesk-postgres:it</postgres.test.image>
+        <openapi.update>false</openapi.update>
     </properties>
 
     <dependencies>
@@ -36,6 +38,23 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-session-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -112,6 +131,7 @@
                 <configuration>
                     <systemPropertyVariables>
                         <postgres.test.image>${postgres.test.image}</postgres.test.image>
+                        <openapi.update>${openapi.update}</openapi.update>
                     </systemPropertyVariables>
                 </configuration>
                 <executions>

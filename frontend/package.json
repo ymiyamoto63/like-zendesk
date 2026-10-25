@@ -9,9 +9,14 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --build",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gen:api": "openapi-typescript src/api/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
+    "@primeuix/themes": "^1.2.5",
+    "openapi-fetch": "^0.17.0",
+    "pinia": "^4.1.0",
+    "primevue": "~4.5.5",
     "vue": "^3.5.44",
     "vue-router": "^5.4.0"
   },
@@ -25,7 +30,8 @@
     "eslint-plugin-vue": "^10.11.1",
     "jiti": "^2.7.0",
     "jsdom": "^29.1.1",
-    "typescript": "^6.0.3",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~5.9",
     "vite": "^8.3.4",
     "vitest": "^5.0.5",
     "vue-tsc": "^3.3.13"

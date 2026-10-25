@@ -1,0 +1,6 @@
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  background: var(--p-surface-50);
+  color: var(--p-text-color);
+}

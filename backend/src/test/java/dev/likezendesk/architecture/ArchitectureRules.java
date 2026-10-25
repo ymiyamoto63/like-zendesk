@@ -70,8 +70,9 @@ final class ArchitectureRules {
                 return false;
             }
             if (!feature.equals(to.feature)) {
-                // 機能をまたぐ呼び出しは、相手の app 層だけを経由する
-                return to.layer.equals("app") && (layer.equals("web") || layer.equals("app"));
+                // 機能をまたぐ呼び出しは、相手の app 層（と、その引数・戻り値になる domain の型）だけを経由する
+                return (to.layer.equals("app") || to.layer.equals("domain"))
+                        && (layer.equals("web") || layer.equals("app"));
             }
             return SAME_FEATURE.get(layer).contains(to.layer);
         }
