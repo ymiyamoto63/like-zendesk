@@ -41,6 +41,28 @@ public class Groups {
         }
     }
 
+    @Transactional
+    public GroupRef rename(Viewer.Admin viewer, UUID id, String name) {
+        try {
+            if (!groups.rename(viewer, id, name.strip())) {
+                throw ApiException.notFound();
+            }
+        } catch (DuplicateKeyException e) {
+            throw ApiException.conflict("group.name_taken", "A group with this name already exists");
+        }
+        return groups.find(viewer, id).orElseThrow();
+    }
+
+    /** チケットが割り当てられているグループは消せない（409 {@code group.in_use}）。 */
+    @Transactional
+    public void delete(Viewer.Admin viewer, UUID id) {
+        groups.find(viewer, id).orElseThrow(ApiException::notFound);
+        if (groups.hasTickets(viewer, id)) {
+            throw ApiException.conflict("group.in_use", "Tickets are assigned to this group");
+        }
+        groups.delete(viewer, id);
+    }
+
     /** 所属メンバーを置き換える。メンバーは有効なエージェントか管理者に限る。 */
     @Transactional
     public void replaceMembers(Viewer.Admin viewer, UUID groupId, List<UUID> userIds) {

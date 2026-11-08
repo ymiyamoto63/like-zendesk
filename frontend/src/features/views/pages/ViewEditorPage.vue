@@ -7,6 +7,7 @@ import Select from 'primevue/select'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import FormField from '@/features/auth/components/FormField.vue'
+import { useOrganizations } from '@/features/admin/queries'
 import { useGroups } from '@/features/tickets/queries'
 import AgentLayout from '@/layouts/AgentLayout.vue'
 import { useSessionStore } from '@/session/store'
@@ -22,6 +23,7 @@ const slug = String(route.params.slug)
 const id = route.params.viewId === undefined ? null : String(route.params.viewId)
 const isAdmin = computed(() => useSessionStore().me[slug]?.role === 'admin')
 const groups = useGroups(slug)
+const organizations = useOrganizations(slug)
 const views = useViews(slug)
 const { create, update, remove } = useViewMutations(slug)
 
@@ -131,6 +133,7 @@ async function destroy() {
         <ConditionEditor
           v-model="conditions"
           :groups="groups.data.value ?? []"
+          :organizations="organizations.data.value ?? []"
         />
       </fieldset>
       <fieldset class="sort">

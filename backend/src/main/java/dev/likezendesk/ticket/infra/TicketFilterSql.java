@@ -36,6 +36,9 @@ final class TicketFilterSql {
             "type",
             "array_position(ARRAY['question','incident','problem','task'], t.type)");
 
+    private static final String REQUESTER_ORG = "(SELECT ru.organization_id FROM users ru"
+            + " WHERE ru.tenant_id = t.tenant_id AND ru.id = t.requester_id)";
+
     private TicketFilterSql() {}
 
     static SqlCondition where(Viewer.Staff viewer, TicketFilter filter, Instant now) {
@@ -68,6 +71,18 @@ final class TicketFilterSql {
                         case "group is_null" -> "t.group_id IS NULL";
                         case "group is_not_null" -> "t.group_id IS NOT NULL";
                         case "group in" -> groupIn(viewer, (List<?>) c.value(), p, params);
+                        // 依頼者の所属組織（F-A-4）
+                        case "organization in" -> {
+                            params.put(
+                                    p,
+                                    ((List<?>) c.value())
+                                            .stream()
+                                                    .map(v -> UUID.fromString((String) v))
+                                                    .toArray(UUID[]::new));
+                            yield REQUESTER_ORG + " = ANY (:" + p + ")";
+                        }
+                        case "organization is_null" -> REQUESTER_ORG + " IS NULL";
+                        case "organization is_not_null" -> REQUESTER_ORG + " IS NOT NULL";
                         case "tags has_any" -> {
                             params.put(p, strings(c.value()));
                             yield "t.tags && CAST(:" + p + " AS text[])";

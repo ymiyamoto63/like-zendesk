@@ -37,6 +37,7 @@ public record TicketFilter(List<Condition> all, List<Sort> sort) {
             "type", Set.of("in", "not_in"),
             "assignee", Set.of("eq", "is_null", "is_not_null"),
             "group", Set.of("in", "is_null", "is_not_null"),
+            "organization", Set.of("in", "is_null", "is_not_null"),
             "tags", Set.of("has_any", "has_all"),
             "created_at", Set.of("within_days", "older_than_days"),
             "updated_at", Set.of("within_days", "older_than_days"));
@@ -93,6 +94,7 @@ public record TicketFilter(List<Condition> all, List<Sort> sort) {
                     case "priority" ->
                         enumList(c.value(), v -> Priority.fromDb(v).dbValue());
                     case "type" -> enumList(c.value(), v -> TicketType.fromDb(v).dbValue());
+                    case "organization" -> enumList(c.value(), TicketFilter::uuid);
                     default -> enumList(c.value(), TicketFilter::groupRef);
                 };
             default -> tags(c.value());
@@ -112,6 +114,9 @@ public record TicketFilter(List<Condition> all, List<Sort> sort) {
     }
 
     private static String uuid(@Nullable Object value) {
+        if (!(value instanceof String)) {
+            throw invalid("not an id: " + value);
+        }
         try {
             return UUID.fromString(String.valueOf(value)).toString();
         } catch (IllegalArgumentException e) {

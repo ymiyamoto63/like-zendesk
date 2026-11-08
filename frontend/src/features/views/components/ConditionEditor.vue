@@ -21,7 +21,7 @@ import {
   type Field,
 } from '../conditions'
 
-const props = defineProps<{ groups: Group[] }>()
+const props = defineProps<{ groups: Group[]; organizations: { id: string; name: string }[] }>()
 const conditions = defineModel<Condition[]>({ required: true })
 
 const fields = (Object.keys(fieldLabels) as Field[]).map((value) => ({ value, label: fieldLabels[value] }))
@@ -43,7 +43,9 @@ function opChoices(field: Field) {
 }
 
 function choices(c: Condition) {
-  return c.field === 'group' ? groupChoices.value : enumChoices(c.field)
+  if (c.field === 'group') return groupChoices.value
+  if (c.field === 'organization') return props.organizations.map((o) => ({ value: o.id, label: o.name }))
+  return enumChoices(c.field)
 }
 
 function replace(index: number, next: Condition) {

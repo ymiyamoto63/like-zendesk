@@ -36,6 +36,13 @@ function search() {
         <RouterLink :to="`/t/${slug}/agent/tickets/new`">
           新規チケット
         </RouterLink>
+        <RouterLink
+          v-if="me?.role === 'admin'"
+          :to="`/t/${slug}/agent/admin/users`"
+          :class="{ current: route.path.startsWith(`/t/${slug}/agent/admin`) }"
+        >
+          管理
+        </RouterLink>
       </nav>
       <form
         role="search"

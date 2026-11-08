@@ -16,6 +16,7 @@ export const fieldLabels: Record<Field, string> = {
   type: '種別',
   assignee: '担当者',
   group: 'グループ',
+  organization: '依頼者の組織',
   tags: 'タグ',
   created_at: '作成日',
   updated_at: '更新日',
@@ -40,6 +41,7 @@ export const opsByField: Record<Field, Op[]> = {
   type: ['in', 'not_in'],
   assignee: ['eq', 'is_null', 'is_not_null'],
   group: ['in', 'is_null', 'is_not_null'],
+  organization: ['in', 'is_null', 'is_not_null'],
   tags: ['has_any', 'has_all'],
   created_at: ['within_days', 'older_than_days'],
   updated_at: ['within_days', 'older_than_days'],
@@ -76,7 +78,7 @@ export function valueKind(op: Op): ValueKind {
   }
 }
 
-/** 列挙型の項目の選択肢。グループは画面が読み込んだ一覧から作る。 */
+/** 列挙型の項目の選択肢。グループと組織は画面が読み込んだ一覧から作る。 */
 export function enumChoices(field: Field): { value: string; label: string }[] {
   const labels: Record<string, string> | undefined = {
     status: statusLabels,
