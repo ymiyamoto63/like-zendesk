@@ -35,7 +35,7 @@ docker compose up --build
 
 ```sh
 docker compose up -d db mailpit           # DB とメールだけをコンテナで動かす
-(cd backend && ./mvnw spring-boot:run)    # API: http://localhost:8081
+(cd backend && APP_BASE_URL=http://localhost:5173 ./mvnw spring-boot:run)  # API: http://localhost:8081（メールのリンクを開発サーバーに向ける）
 (cd frontend && npm install && npm run dev)  # 画面: http://localhost:5173（/api は 8081 へ転送）
 ```
 
@@ -69,4 +69,4 @@ API を変えたら、OpenAPI 定義とフロントエンドの型を生成し�
 
 ## ステータス
 
-開発初期段階です。[実装の順序](docs/design/README.md#3-次の段階)のうち、骨組み（段階 1）と、テナント・認証（段階 2）のうちサインアップとログインまで進んでいます。
+開発初期段階です。[実装の順序](docs/design/README.md#3-次の段階)のうち、骨組み（段階 1）と、テナント・認証（段階 2）まで進んでいます。サインアップ、ログイン、エージェントの招待、依頼者の自己登録とメールアドレスの確認、パスワードの再設定ができます。招待と設定の管理画面は段階 7 で作るため、今は API（`/api/docs`）から操作します。

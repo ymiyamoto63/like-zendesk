@@ -1,0 +1,4 @@
+# テストでは定期ジョブを止め、メールの送信はテストから MailDispatcher を呼んで行う
+app:
+  scheduling:
+    enabled: false

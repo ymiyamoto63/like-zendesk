@@ -20,7 +20,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class UserRepository {
 
-    private static final String COLUMNS = "u.tenant_id, u.id, u.email, u.name, u.role, u.active, u.password_hash";
+    private static final String COLUMNS = "u.tenant_id, u.id, u.email, u.name, u.role, u.active,"
+            + " u.email_verified_at IS NOT NULL AS email_verified, u.password_hash";
 
     private final JdbcClient jdbc;
 
@@ -71,7 +72,56 @@ public class UserRepository {
                 .query(UUID.class)
                 .single();
         return new UserAccount(
-                viewer.tenantId(), new UserId(id), user.email(), user.name(), user.role(), true, user.passwordHash());
+                viewer.tenantId(),
+                new UserId(id),
+                user.email(),
+                user.name(),
+                user.role(),
+                true,
+                user.emailVerifiedAt() != null,
+                user.passwordHash());
+    }
+
+    /** 招待を受諾したユーザーの名前とパスワードを設定し、メールアドレスを確認済みにする。 */
+    public void completeInvitation(Viewer.System viewer, UserId id, String name, String passwordHash, Instant now) {
+        jdbc.sql("""
+                        UPDATE users SET name = :name, password_hash = :hash, email_verified_at = :now
+                        WHERE tenant_id = :v_tenant AND id = :id
+                        """)
+                .param("v_tenant", viewer.tenantId().value())
+                .param("id", id.value())
+                .param("name", name)
+                .param("hash", passwordHash)
+                .param("now", Timestamp.from(now))
+                .update();
+    }
+
+    /** 受諾前の招待を出し直すときに、ロールを変える。 */
+    public void changeRole(Viewer.Admin viewer, UserId id, Role role) {
+        jdbc.sql("UPDATE users SET role = :role WHERE tenant_id = :v_tenant AND id = :id")
+                .param("v_tenant", viewer.tenantId().value())
+                .param("id", id.value())
+                .param("role", role.dbValue())
+                .update();
+    }
+
+    public void markEmailVerified(Viewer.System viewer, UserId id, Instant now) {
+        jdbc.sql("""
+                        UPDATE users SET email_verified_at = COALESCE(email_verified_at, :now)
+                        WHERE tenant_id = :v_tenant AND id = :id
+                        """)
+                .param("v_tenant", viewer.tenantId().value())
+                .param("id", id.value())
+                .param("now", Timestamp.from(now))
+                .update();
+    }
+
+    public void changePassword(Viewer.System viewer, UserId id, String passwordHash) {
+        jdbc.sql("UPDATE users SET password_hash = :hash WHERE tenant_id = :v_tenant AND id = :id")
+                .param("v_tenant", viewer.tenantId().value())
+                .param("id", id.value())
+                .param("hash", passwordHash)
+                .update();
     }
 
     /** {@code id} のユーザーが所属するグループ。ユーザーが閲覧者に見えなければ空。 */
@@ -95,6 +145,7 @@ public class UserRepository {
                 rs.getString("name"),
                 Role.fromDb(rs.getString("role")),
                 rs.getBoolean("active"),
+                rs.getBoolean("email_verified"),
                 rs.getString("password_hash"));
     }
 }

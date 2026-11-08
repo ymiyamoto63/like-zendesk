@@ -3,33 +3,23 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Password from 'primevue/password'
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, unwrap } from '@/api/client'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import { useSessionStore } from '@/session/store'
 import FormField from '../components/FormField.vue'
 import { errorMessage } from '../messages'
+import { useTenant } from '../tenant'
 
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
-const slug = String(route.params.slug)
+const { slug, tenant } = useTenant()
 
-const tenantName = ref('')
 const email = ref('')
 const password = ref('')
 const error = ref('')
 const submitting = ref(false)
-
-onMounted(async () => {
-  try {
-    const tenant = await unwrap(api.GET('/api/t/{slug}', { params: { path: { slug } } }))
-    tenantName.value = tenant.name
-  } catch {
-    await router.replace({ name: 'not-found', params: { pathMatch: route.path.slice(1).split('/') } })
-  }
-})
 
 async function submit() {
   error.value = ''
@@ -50,7 +40,7 @@ async function submit() {
 </script>
 
 <template>
-  <PublicLayout :title="tenantName ? `${tenantName} にログイン` : 'ログイン'">
+  <PublicLayout :title="tenant ? `${tenant.name} にログイン` : 'ログイン'">
     <form @submit.prevent="submit">
       <Message
         v-if="error"
@@ -92,11 +82,24 @@ async function submit() {
         fluid
       />
     </form>
+    <p class="links">
+      <RouterLink :to="`/t/${slug}/password-reset`">
+        パスワードを忘れた場合
+      </RouterLink>
+      <RouterLink :to="`/t/${slug}/register`">
+        アカウントを登録する
+      </RouterLink>
+    </p>
   </PublicLayout>
 </template>
 
 <style scoped>
 .error {
   margin-bottom: 1rem;
+}
+.links {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0;
 }
 </style>

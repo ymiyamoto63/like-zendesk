@@ -1,6 +1,22 @@
 {
   "components" : {
     "schemas" : {
+      "AcceptRequest" : {
+        "properties" : {
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "password" : {
+            "maxLength" : 72,
+            "minLength" : 8,
+            "type" : "string"
+          }
+        },
+        "required" : [ "name", "password" ],
+        "type" : "object"
+      },
       "Group" : {
         "properties" : {
           "id" : {
@@ -12,6 +28,32 @@
           }
         },
         "required" : [ "id", "name" ],
+        "type" : "object"
+      },
+      "InvitationResponse" : {
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "email" ],
+        "type" : "object"
+      },
+      "InviteRequest" : {
+        "properties" : {
+          "email" : {
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "role" : {
+            "enum" : [ "agent", "admin" ],
+            "pattern" : "agent|admin",
+            "type" : "string"
+          }
+        },
+        "required" : [ "email", "role" ],
         "type" : "object"
       },
       "LoginRequest" : {
@@ -52,6 +94,96 @@
           }
         },
         "required" : [ "email", "groups", "id", "name", "role" ],
+        "type" : "object"
+      },
+      "NewPasswordRequest" : {
+        "properties" : {
+          "password" : {
+            "maxLength" : 72,
+            "minLength" : 8,
+            "type" : "string"
+          }
+        },
+        "required" : [ "password" ],
+        "type" : "object"
+      },
+      "RegisterRequest" : {
+        "properties" : {
+          "email" : {
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "password" : {
+            "maxLength" : 72,
+            "minLength" : 8,
+            "type" : "string"
+          }
+        },
+        "required" : [ "email", "name", "password" ],
+        "type" : "object"
+      },
+      "ResetRequest" : {
+        "properties" : {
+          "email" : {
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "email" ],
+        "type" : "object"
+      },
+      "SettingsRequest" : {
+        "properties" : {
+          "allowedDomains" : {
+            "items" : {
+              "minLength" : 1,
+              "pattern" : "^@?[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+$",
+              "type" : "string"
+            },
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "requesterSignup" : {
+            "enum" : [ "open", "domain_restricted" ],
+            "pattern" : "open|domain_restricted",
+            "type" : "string"
+          }
+        },
+        "required" : [ "allowedDomains", "name", "requesterSignup" ],
+        "type" : "object"
+      },
+      "SettingsResponse" : {
+        "properties" : {
+          "allowedDomains" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "requesterSignup" : {
+            "enum" : [ "open", "domain_restricted" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "allowedDomains", "name", "requesterSignup" ],
         "type" : "object"
       },
       "SignupRequest" : {
@@ -113,6 +245,16 @@
         },
         "required" : [ "name", "requesterSignup", "slug" ],
         "type" : "object"
+      },
+      "VerifyRequest" : {
+        "properties" : {
+          "token" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "token" ],
+        "type" : "object"
       }
     }
   },
@@ -135,7 +277,7 @@
     },
     "/api/t/{slug}" : {
       "get" : {
-        "operationId" : "get",
+        "operationId" : "get_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "slug",
@@ -157,6 +299,207 @@
           }
         },
         "tags" : [ "tenant-controller" ]
+      }
+    },
+    "/api/t/{slug}/admin/invitations" : {
+      "post" : {
+        "operationId" : "invite",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/InviteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "description" : "Accepted"
+          }
+        },
+        "tags" : [ "invitation-controller" ]
+      }
+    },
+    "/api/t/{slug}/admin/settings" : {
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SettingsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tenant-settings-controller" ]
+      },
+      "patch" : {
+        "operationId" : "update",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SettingsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SettingsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tenant-settings-controller" ]
+      }
+    },
+    "/api/t/{slug}/email-verifications" : {
+      "post" : {
+        "operationId" : "verify",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VerifyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "registration-controller" ]
+      }
+    },
+    "/api/t/{slug}/invitations/{token}" : {
+      "get" : {
+        "operationId" : "describe",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvitationResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "invitation-controller" ]
+      }
+    },
+    "/api/t/{slug}/invitations/{token}/accept" : {
+      "post" : {
+        "operationId" : "accept",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AcceptRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "invitation-controller" ]
       }
     },
     "/api/t/{slug}/me" : {
@@ -183,6 +526,100 @@
           }
         },
         "tags" : [ "session-controller" ]
+      }
+    },
+    "/api/t/{slug}/password-resets" : {
+      "post" : {
+        "operationId" : "requestReset",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResetRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "description" : "Accepted"
+          }
+        },
+        "tags" : [ "registration-controller" ]
+      }
+    },
+    "/api/t/{slug}/password-resets/{token}" : {
+      "put" : {
+        "operationId" : "reset",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/NewPasswordRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "registration-controller" ]
+      }
+    },
+    "/api/t/{slug}/requesters" : {
+      "post" : {
+        "operationId" : "register",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "description" : "Accepted"
+          }
+        },
+        "tags" : [ "registration-controller" ]
       }
     },
     "/api/t/{slug}/session" : {

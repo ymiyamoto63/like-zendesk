@@ -6,6 +6,7 @@ import dev.likezendesk.tenant.domain.Tenant;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -19,6 +20,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class TenantDirectory {
 
+    static final String COLUMNS = "id, slug, name, requester_signup, allowed_domains";
+
     private final JdbcClient jdbc;
 
     TenantDirectory(JdbcClient jdbc) {
@@ -26,10 +29,17 @@ public class TenantDirectory {
     }
 
     public Optional<Tenant> findBySlug(String slug) {
-        return jdbc.sql("SELECT id, slug, name, requester_signup FROM tenants WHERE slug = :slug")
+        return jdbc.sql("SELECT " + COLUMNS + " FROM tenants WHERE slug = :slug")
                 .param("slug", slug)
                 .query(TenantDirectory::map)
                 .optional();
+    }
+
+    /** 全テナントの ID。定期ジョブがテナントごとに Viewer.System を作るために使う。 */
+    public List<TenantId> allIds() {
+        return jdbc.sql("SELECT id FROM tenants ORDER BY id")
+                .query((rs, row) -> new TenantId(rs.getObject("id", UUID.class)))
+                .list();
     }
 
     /** slug が使われていれば {@link org.springframework.dao.DuplicateKeyException}。 */
@@ -45,14 +55,15 @@ public class TenantDirectory {
                 .param("now", java.sql.Timestamp.from(now))
                 .query(UUID.class)
                 .single();
-        return new Tenant(new TenantId(id), slug, name, requesterSignup);
+        return new Tenant(new TenantId(id), slug, name, requesterSignup, List.of());
     }
 
-    private static Tenant map(ResultSet rs, int row) throws SQLException {
+    static Tenant map(ResultSet rs, int row) throws SQLException {
         return new Tenant(
                 new TenantId(rs.getObject("id", UUID.class)),
                 rs.getString("slug"),
                 rs.getString("name"),
-                RequesterSignup.fromDb(rs.getString("requester_signup")));
+                RequesterSignup.fromDb(rs.getString("requester_signup")),
+                List.of((String[]) rs.getArray("allowed_domains").getArray()));
     }
 }
