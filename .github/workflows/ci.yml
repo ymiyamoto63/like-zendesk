@@ -74,7 +74,8 @@ jobs:
 
   e2e:
     # 受け入れ基準 1〜13（N-9）を、compose で起動した環境に対して画面操作で確かめる
-    runs-on: ubuntu-latest
+    # Playwright 1.56 のブラウザが Ubuntu 26.04 に対応していないため、24.04 に固定する
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
