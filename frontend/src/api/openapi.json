@@ -96,6 +96,39 @@
         "required" : [ "author", "body", "createdAt", "id", "public" ],
         "type" : "object"
       },
+      "ConditionDto" : {
+        "properties" : {
+          "field" : {
+            "enum" : [ "status", "priority", "type", "assignee", "group", "tags", "created_at", "updated_at" ],
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "op" : {
+            "enum" : [ "in", "not_in", "eq", "is_null", "is_not_null", "has_any", "has_all", "within_days", "older_than_days" ],
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "value" : {
+            "description" : "演算子による。in・has_any などは文字列の配列、eq は ID か @me、within_days は日数。is_null では省略"
+          }
+        },
+        "required" : [ "field", "op", "value" ],
+        "type" : "object"
+      },
+      "ConditionsDto" : {
+        "properties" : {
+          "all" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ConditionDto"
+            },
+            "maxItems" : 20,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "all" ],
+        "type" : "object"
+      },
       "CreateGroupRequest" : {
         "properties" : {
           "name" : {
@@ -470,6 +503,23 @@
         "required" : [ "me", "slug" ],
         "type" : "object"
       },
+      "SortDto" : {
+        "properties" : {
+          "direction" : {
+            "enum" : [ "asc", "desc" ],
+            "minLength" : 1,
+            "pattern" : "asc|desc",
+            "type" : "string"
+          },
+          "field" : {
+            "enum" : [ "number", "subject", "status", "priority", "type", "created_at", "updated_at" ],
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "direction", "field" ],
+        "type" : "object"
+      },
       "TenantInfo" : {
         "properties" : {
           "name" : {
@@ -661,6 +711,61 @@
         },
         "required" : [ "token" ],
         "type" : "object"
+      },
+      "ViewRequest" : {
+        "properties" : {
+          "conditions" : {
+            "$ref" : "#/components/schemas/ConditionsDto"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "shared" : {
+            "description" : "true で共有ビューにする（管理者のみ）。作成時だけ使う",
+            "type" : "boolean"
+          },
+          "sort" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SortDto"
+            },
+            "maxItems" : 3,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "conditions", "name" ],
+        "type" : "object"
+      },
+      "ViewResponse" : {
+        "properties" : {
+          "conditions" : {
+            "$ref" : "#/components/schemas/ConditionsDto"
+          },
+          "count" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "enum" : [ "builtin", "shared", "personal" ],
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "sort" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SortDto"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "conditions", "count", "id", "kind", "name", "sort" ],
+        "type" : "object"
       }
     }
   },
@@ -835,7 +940,7 @@
         "tags" : [ "tenant-settings-controller" ]
       },
       "patch" : {
-        "operationId" : "update_1",
+        "operationId" : "update_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "slug",
@@ -1185,14 +1290,44 @@
     },
     "/api/t/{slug}/tickets" : {
       "get" : {
-        "operationId" : "list",
+        "operationId" : "list_1",
         "parameters" : [ {
+          "in" : "query",
+          "name" : "view",
+          "required" : false,
+          "schema" : {
+            "default" : "builtin:all",
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "default" : "",
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "default" : "",
+            "pattern" : "^$|^-?[a-zA-Z]+(,-?[a-zA-Z]+){0,2}$",
+            "type" : "string"
+          }
+        }, {
           "in" : "query",
           "name" : "page",
           "required" : false,
           "schema" : {
             "default" : 0,
             "format" : "int32",
+            "maximum" : 10000,
             "minimum" : 0,
             "type" : "integer"
           }
@@ -1230,7 +1365,7 @@
         "tags" : [ "ticket-controller" ]
       },
       "post" : {
-        "operationId" : "create",
+        "operationId" : "create_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "slug",
@@ -1298,7 +1433,7 @@
         "tags" : [ "ticket-controller" ]
       },
       "patch" : {
-        "operationId" : "update",
+        "operationId" : "update_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "number",
@@ -1498,6 +1633,144 @@
           }
         },
         "tags" : [ "directory-controller" ]
+      }
+    },
+    "/api/t/{slug}/views" : {
+      "get" : {
+        "operationId" : "list",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "withCounts",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ViewResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "view-controller" ]
+      },
+      "post" : {
+        "operationId" : "create",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ViewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ViewResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "view-controller" ]
+      }
+    },
+    "/api/t/{slug}/views/{id}" : {
+      "delete" : {
+        "operationId" : "delete",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "view-controller" ]
+      },
+      "patch" : {
+        "operationId" : "update",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ViewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ViewResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "view-controller" ]
       }
     },
     "/api/tenants" : {

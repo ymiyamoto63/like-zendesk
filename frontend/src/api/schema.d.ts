@@ -97,7 +97,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["update_1"];
+        patch: operations["update_2"];
         trace?: never;
     };
     "/api/t/{slug}/email-verifications": {
@@ -251,9 +251,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list"];
+        get: operations["list_1"];
         put?: never;
-        post: operations["create"];
+        post: operations["create_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -273,7 +273,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["update"];
+        patch: operations["update_1"];
         trace?: never;
     };
     "/api/t/{slug}/tickets/{number}/comments": {
@@ -322,6 +322,38 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/views/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch: operations["update"];
         trace?: never;
     };
     "/api/tenants": {
@@ -373,6 +405,17 @@ export interface components {
             /** Format: uuid */
             id: string;
             public: boolean;
+        };
+        ConditionDto: {
+            /** @enum {string} */
+            field: "status" | "priority" | "type" | "assignee" | "group" | "tags" | "created_at" | "updated_at";
+            /** @enum {string} */
+            op: "in" | "not_in" | "eq" | "is_null" | "is_not_null" | "has_any" | "has_all" | "within_days" | "older_than_days";
+            /** @description 演算子による。in・has_any などは文字列の配列、eq は ID か @me、within_days は日数。is_null では省略 */
+            value: unknown;
+        };
+        ConditionsDto: {
+            all: components["schemas"]["ConditionDto"][];
         };
         CreateGroupRequest: {
             name: string;
@@ -496,6 +539,12 @@ export interface components {
             me: components["schemas"]["MeResponse"];
             slug: string;
         };
+        SortDto: {
+            /** @enum {string} */
+            direction: "asc" | "desc";
+            /** @enum {string} */
+            field: "number" | "subject" | "status" | "priority" | "type" | "created_at" | "updated_at";
+        };
         TenantInfo: {
             name: string;
             /** @enum {string} */
@@ -570,6 +619,23 @@ export interface components {
         };
         VerifyRequest: {
             token: string;
+        };
+        ViewRequest: {
+            conditions: components["schemas"]["ConditionsDto"];
+            name: string;
+            /** @description true で共有ビューにする（管理者のみ）。作成時だけ使う */
+            shared?: boolean;
+            sort?: components["schemas"]["SortDto"][];
+        };
+        ViewResponse: {
+            conditions: components["schemas"]["ConditionsDto"];
+            /** Format: int64 */
+            count: number | null;
+            id: string;
+            /** @enum {string} */
+            kind: "builtin" | "shared" | "personal";
+            name: string;
+            sort: components["schemas"]["SortDto"][];
         };
     };
     responses: never;
@@ -717,7 +783,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -982,9 +1048,12 @@ export interface operations {
             };
         };
     };
-    list: {
+    list_1: {
         parameters: {
             query?: {
+                view?: string;
+                q?: string;
+                sort?: string;
                 page?: number;
                 size?: number;
             };
@@ -1007,7 +1076,7 @@ export interface operations {
             };
         };
     };
-    create: {
+    create_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1056,7 +1125,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1177,6 +1246,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserSummary"][];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: {
+                withCounts?: boolean;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewResponse"][];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ViewRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewResponse"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ViewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewResponse"];
                 };
             };
         };

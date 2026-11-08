@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router'
 import { useSessionStore } from '@/session/store'
 import { access, type Requires } from './access'
+import { DEFAULT_VIEW } from '@/features/views/queries'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -36,10 +37,25 @@ export const router = createRouter({
       component: () => import('@/features/portal/pages/PortalHomePage.vue'),
       meta: { requires: 'requester' },
     },
-    // ビュー（段階 4）ができるまでは、チケット一覧を既定の画面にする
-    { path: '/t/:slug/agent', redirect: (to) => `/t/${String(to.params.slug)}/agent/tickets` },
+    { path: '/t/:slug/agent', redirect: (to) => `/t/${String(to.params.slug)}/agent/views/${DEFAULT_VIEW}` },
+    { path: '/t/:slug/agent/tickets', redirect: (to) => `/t/${String(to.params.slug)}/agent` },
     {
-      path: '/t/:slug/agent/tickets',
+      path: '/t/:slug/agent/views/new',
+      component: () => import('@/features/views/pages/ViewEditorPage.vue'),
+      meta: { requires: 'staff' },
+    },
+    {
+      path: '/t/:slug/agent/views/:viewId/edit',
+      component: () => import('@/features/views/pages/ViewEditorPage.vue'),
+      meta: { requires: 'staff' },
+    },
+    {
+      path: '/t/:slug/agent/views/:viewId',
+      component: () => import('@/features/tickets/pages/TicketListPage.vue'),
+      meta: { requires: 'staff' },
+    },
+    {
+      path: '/t/:slug/agent/search',
       component: () => import('@/features/tickets/pages/TicketListPage.vue'),
       meta: { requires: 'staff' },
     },
