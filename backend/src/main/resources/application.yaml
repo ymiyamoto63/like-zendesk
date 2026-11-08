@@ -48,6 +48,10 @@ management:
       base-path: /api/actuator
       exposure:
         include: health
+  health:
+    # 起動時のデータ投入（devtools.app.SeedRunner）が終わるまでは UP にしない。compose の healthcheck が待つ
+    readinessstate:
+      enabled: true
 
 app:
   # メールに載せるリンクの起点。画面を配信する URL にする

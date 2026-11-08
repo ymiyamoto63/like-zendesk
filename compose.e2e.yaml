@@ -1,0 +1,9 @@
+# E2E テスト用の上書き。docker compose -f compose.yaml -f compose.e2e.yaml up -d --build
+# e2e プロファイルで時計を進める API（/api/_e2e/clock）を有効にし、デモデータは入れない。
+services:
+  api:
+    environment:
+      SPRING_PROFILES_ACTIVE: e2e
+      APP_SEED: ""
+      # 通知メールをすぐ Mailpit に届ける
+      APP_MAIL_DISPATCH_DELAY: 1s
