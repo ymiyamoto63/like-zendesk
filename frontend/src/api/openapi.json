@@ -123,6 +123,75 @@
         "required" : [ "contentType", "filename", "id", "size" ],
         "type" : "object"
       },
+      "BulkUpdateRequest" : {
+        "properties" : {
+          "addTags" : {
+            "items" : {
+              "maxLength" : 50,
+              "minLength" : 0,
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "assigneeId" : {
+            "description" : "null で担当者を外す。省略すると変えない",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "groupId" : {
+            "description" : "null で担当グループを外す。省略すると変えない",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "numbers" : {
+            "description" : "対象のチケット番号（100 件まで）",
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "maxItems" : 100,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "removeTags" : {
+            "items" : {
+              "maxLength" : 50,
+              "minLength" : 0,
+              "type" : "string"
+            },
+            "maxItems" : 20,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "status" : {
+            "enum" : [ "new", "open", "pending", "on_hold", "solved", "closed" ],
+            "pattern" : "new|open|pending|on_hold|solved|closed",
+            "type" : "string"
+          }
+        },
+        "required" : [ "numbers" ],
+        "type" : "object"
+      },
+      "BulkUpdateResponse" : {
+        "properties" : {
+          "failed" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Failure"
+            },
+            "type" : "array"
+          },
+          "updated" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TicketResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "failed", "updated" ],
+        "type" : "object"
+      },
       "ChangeSetResponse" : {
         "properties" : {
           "actor" : {
@@ -305,6 +374,19 @@
           }
         },
         "required" : [ "items" ],
+        "type" : "object"
+      },
+      "Failure" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "number" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "code", "number" ],
         "type" : "object"
       },
       "FieldChangeResponse" : {
@@ -1469,7 +1551,7 @@
         "tags" : [ "tenant-settings-controller" ]
       },
       "patch" : {
-        "operationId" : "update_2",
+        "operationId" : "update_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "slug",
@@ -2342,6 +2424,40 @@
         },
         "tags" : [ "ticket-controller" ]
       },
+      "patch" : {
+        "operationId" : "update",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BulkUpdateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BulkUpdateResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "bulk-update-controller" ]
+      },
       "post" : {
         "operationId" : "create_1",
         "parameters" : [ {
@@ -2411,7 +2527,7 @@
         "tags" : [ "ticket-controller" ]
       },
       "patch" : {
-        "operationId" : "update_1",
+        "operationId" : "update_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "number",
@@ -2710,7 +2826,7 @@
         "tags" : [ "view-controller" ]
       },
       "patch" : {
-        "operationId" : "update",
+        "operationId" : "update_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",

@@ -3,7 +3,7 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable, { type DataTablePageEvent, type DataTableSortEvent } from 'primevue/datatable'
 import Message from 'primevue/message'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import AgentLayout from '@/layouts/AgentLayout.vue'
 import ViewSidebar from '@/features/views/components/ViewSidebar.vue'
@@ -11,7 +11,8 @@ import { DEFAULT_VIEW, useViews } from '@/features/views/queries'
 import { useSessionStore } from '@/session/store'
 import StatusBadge from '@/shared/components/StatusBadge.vue'
 import { formatDateTime, priorityLabels } from '@/shared/labels'
-import { PAGE_SIZE, useTicketList, type ListQuery } from '../queries'
+import BulkUpdatePanel from '../components/BulkUpdatePanel.vue'
+import { PAGE_SIZE, useGroups, useTicketList, type ListQuery, type Ticket } from '../queries'
 import { formatSort, parseSort } from '../sort'
 
 // ビューの一覧（/agent/views/:viewId）と全文検索（/agent/search?q=）を兼ねる。
@@ -30,6 +31,19 @@ const query = computed<ListQuery>(() => ({
 }))
 const sort = computed(() => parseSort(query.value.sort))
 const { data, isPending, isError } = useTicketList(slug, query)
+const groups = useGroups(slug)
+
+// 一括更新で選んだ行。ビューやページが変わったら選択を外す
+const selected = ref<Ticket[]>([])
+watch(query, () => (selected.value = []))
+const bulkMessage = ref<{ severity: 'success' | 'warn'; text: string } | null>(null)
+watch(selected, (rows) => {
+  if (rows.length > 0) bulkMessage.value = null
+})
+function finished(result: { severity: 'success' | 'warn'; text: string }) {
+  selected.value = []
+  bulkMessage.value = result
+}
 
 const view = computed(() => views.data.value?.find((v) => v.id === query.value.view))
 const title = computed(() => (searching.value ? `「${query.value.q}」の検索結果` : (view.value?.name ?? 'ビュー')))
@@ -83,8 +97,26 @@ function changeSort(event: DataTableSortEvent) {
         >
           チケットを読み込めませんでした。
         </Message>
+        <Message
+          v-if="bulkMessage"
+          :severity="bulkMessage.severity"
+          closable
+          class="bulk-message"
+          @close="bulkMessage = null"
+        >
+          {{ bulkMessage.text }}
+        </Message>
+        <BulkUpdatePanel
+          v-if="selected.length > 0"
+          :slug="slug"
+          :numbers="selected.map((t) => t.number)"
+          :groups="groups.data.value ?? []"
+          @done="finished"
+          @cancel="selected = []"
+        />
         <DataTable
-          v-else
+          v-if="!isError"
+          v-model:selection="selected"
           :value="data?.items ?? []"
           :loading="isPending"
           lazy
@@ -103,6 +135,10 @@ function changeSort(event: DataTableSortEvent) {
           <template #empty>
             {{ searching ? '一致するチケットはありません。' : 'このビューにチケットはありません。' }}
           </template>
+          <Column
+            selection-mode="multiple"
+            class="select"
+          />
           <Column
             field="number"
             header="#"
@@ -186,6 +222,12 @@ h1 {
   font-size: 0.875rem;
   font-weight: normal;
   color: var(--p-text-muted-color);
+}
+.bulk-message {
+  margin-bottom: 0.75rem;
+}
+:deep(.select) {
+  width: 2.5rem;
 }
 :deep(.number) {
   width: 4rem;
