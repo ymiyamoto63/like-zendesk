@@ -8,7 +8,8 @@ public enum NotificationKind {
     PASSWORD_RESET,
     TICKET_CREATED,
     PUBLIC_COMMENT,
-    ASSIGNED;
+    ASSIGNED,
+    SOLVED;
 
     public String dbValue() {
         return name().toLowerCase(Locale.ROOT);

@@ -73,6 +73,14 @@ class TicketNotifications {
         }
     }
 
+    /** 依頼者が解決済みにしたら、担当者に知らせる（F-N-5）。 */
+    void solved(Viewer viewer, Ticket ticket, UserId author) {
+        var assignee = idOf(ticket.assignee());
+        if (assignee != null) {
+            send(viewer, NotificationKind.SOLVED, ticket, assignee, author, "");
+        }
+    }
+
     private void send(
             Viewer viewer,
             NotificationKind kind,

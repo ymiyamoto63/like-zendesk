@@ -79,6 +79,16 @@ public final class MailTemplates {
                         %s
                         """.formatted(
                                 payload.get("author"), payload.get("subject"), url));
+            case SOLVED ->
+                new Mail(payload.get("to"), ticketSubject(payload, "解決済みになりました"), """
+                        %s さんが、次のチケットを解決済みにしました。
+
+                        件名: %s
+
+                        内容を確認するには:
+                        %s
+                        """.formatted(
+                                payload.get("author"), payload.get("subject"), url));
         };
     }
 }

@@ -1,7 +1,7 @@
 package dev.likezendesk.ticket.web;
 
 import dev.likezendesk.shared.Viewer;
-import dev.likezendesk.ticket.app.Requests;
+import dev.likezendesk.ticket.app.Tickets;
 import dev.likezendesk.ticket.domain.Comment;
 import dev.likezendesk.ticket.domain.Ticket;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -30,10 +30,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class PortalController {
 
-    private final Requests requests;
+    private final Tickets tickets;
 
-    PortalController(Requests requests) {
-        this.requests = requests;
+    PortalController(Tickets tickets) {
+        this.tickets = tickets;
     }
 
     record PortalTicketResponse(
@@ -114,7 +114,7 @@ class PortalController {
             Viewer.Requester viewer,
             @RequestParam(defaultValue = "0") @Min(0) @Max(10_000) int page,
             @RequestParam(defaultValue = "25") @Min(1) @Max(100) int size) {
-        var result = requests.list(viewer, page, size);
+        var result = tickets.list(viewer, page, size);
         return new PortalTicketListResponse(
                 result.items().stream().map(PortalTicketResponse::of).toList(), result.total(), page, size);
     }
@@ -123,17 +123,17 @@ class PortalController {
     @ResponseStatus(HttpStatus.CREATED)
     PortalTicketResponse create(Viewer.Requester viewer, @Valid @RequestBody NewRequestRequest body) {
         return PortalTicketResponse.of(
-                requests.create(viewer, body.subject(), body.body(), TicketController.ids(body.attachmentIds())));
+                tickets.create(viewer, body.subject(), body.body(), TicketController.ids(body.attachmentIds())));
     }
 
     @GetMapping("/api/t/{slug}/portal/tickets/{number}")
     PortalTicketResponse get(Viewer.Requester viewer, @PathVariable long number) {
-        return PortalTicketResponse.of(requests.get(viewer, number));
+        return PortalTicketResponse.of(tickets.get(viewer, number));
     }
 
     @GetMapping("/api/t/{slug}/portal/tickets/{number}/comments")
     PortalCommentsResponse comments(Viewer.Requester viewer, @PathVariable long number) {
-        return new PortalCommentsResponse(requests.comments(viewer, number).stream()
+        return new PortalCommentsResponse(tickets.comments(viewer, number).stream()
                 .map(c -> PortalCommentResponse.of(c, viewer))
                 .toList());
     }
@@ -141,7 +141,7 @@ class PortalController {
     @PostMapping("/api/t/{slug}/portal/tickets/{number}/comments")
     @ResponseStatus(HttpStatus.CREATED)
     ReplyResponse reply(Viewer.Requester viewer, @PathVariable long number, @Valid @RequestBody ReplyRequest body) {
-        var replied = requests.reply(viewer, number, body.body(), TicketController.ids(body.attachmentIds()));
+        var replied = tickets.reply(viewer, number, body.body(), TicketController.ids(body.attachmentIds()));
         return new ReplyResponse(
                 PortalCommentResponse.of(replied.comment(), viewer),
                 PortalTicketResponse.of(replied.ticket()),
@@ -150,6 +150,6 @@ class PortalController {
 
     @PostMapping("/api/t/{slug}/portal/tickets/{number}/solve")
     PortalTicketResponse solve(Viewer.Requester viewer, @PathVariable long number) {
-        return PortalTicketResponse.of(requests.solve(viewer, number));
+        return PortalTicketResponse.of(tickets.solve(viewer, number));
     }
 }
