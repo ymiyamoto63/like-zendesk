@@ -41,6 +41,7 @@ class ViewController {
                         "type",
                         "assignee",
                         "group",
+                        "organization",
                         "tags",
                         "created_at",
                         "updated_at"

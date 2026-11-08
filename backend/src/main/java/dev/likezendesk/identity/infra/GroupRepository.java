@@ -77,6 +77,32 @@ public class GroupRepository {
         return new GroupRef(id, name);
     }
 
+    /** 同じ名前のグループがあれば {@link org.springframework.dao.DuplicateKeyException}。 */
+    public boolean rename(Viewer.Admin viewer, UUID id, String name) {
+        return jdbc.sql("UPDATE agent_groups SET name = :name WHERE tenant_id = :v_tenant AND id = :id")
+                        .param("v_tenant", viewer.tenantId().value())
+                        .param("id", id)
+                        .param("name", name)
+                        .update()
+                == 1;
+    }
+
+    public boolean hasTickets(Viewer.Admin viewer, UUID id) {
+        return jdbc.sql("SELECT EXISTS (SELECT 1 FROM tickets WHERE tenant_id = :v_tenant AND group_id = :id)")
+                .param("v_tenant", viewer.tenantId().value())
+                .param("id", id)
+                .query(Boolean.class)
+                .single();
+    }
+
+    /** 所属はカスケードで消える。チケットが参照していれば外部キーで失敗する。 */
+    public void delete(Viewer.Admin viewer, UUID id) {
+        jdbc.sql("DELETE FROM agent_groups WHERE tenant_id = :v_tenant AND id = :id")
+                .param("v_tenant", viewer.tenantId().value())
+                .param("id", id)
+                .update();
+    }
+
     /** 所属メンバーを置き換える。{@code userIds} は有効なスタッフであること（呼び出し側で確かめる）。 */
     public void replaceMembers(Viewer.Admin viewer, UUID groupId, List<UserId> userIds) {
         var ids = userIds.stream().map(UserId::value).toArray(UUID[]::new);

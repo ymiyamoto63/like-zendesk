@@ -84,6 +84,27 @@ export const router = createRouter({
       component: () => import('@/features/tickets/pages/TicketDetailPage.vue'),
       meta: { requires: 'staff' },
     },
+    { path: '/t/:slug/agent/admin', redirect: (to) => `/t/${String(to.params.slug)}/agent/admin/users` },
+    {
+      path: '/t/:slug/agent/admin/users',
+      component: () => import('@/features/admin/pages/AdminUsersPage.vue'),
+      meta: { requires: 'admin' },
+    },
+    {
+      path: '/t/:slug/agent/admin/groups',
+      component: () => import('@/features/admin/pages/AdminGroupsPage.vue'),
+      meta: { requires: 'admin' },
+    },
+    {
+      path: '/t/:slug/agent/admin/organizations',
+      component: () => import('@/features/admin/pages/AdminOrganizationsPage.vue'),
+      meta: { requires: 'admin' },
+    },
+    {
+      path: '/t/:slug/agent/admin/settings',
+      component: () => import('@/features/admin/pages/AdminSettingsPage.vue'),
+      meta: { requires: 'admin' },
+    },
     {
       path: '/:pathMatch(.*)*',
       name: 'not-found',

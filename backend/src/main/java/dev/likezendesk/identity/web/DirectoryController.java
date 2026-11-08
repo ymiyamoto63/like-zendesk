@@ -15,7 +15,9 @@ import java.util.List;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -24,7 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** スタッフ向けのユーザー検索とグループ（F-T-1、F-T-6、F-A-3）。グループの管理画面は段階 7 で作る。 */
+/** スタッフ向けのユーザー検索とグループ（F-T-1、F-T-6、F-A-3）。 */
 @RestController
 class DirectoryController {
 
@@ -82,6 +84,18 @@ class DirectoryController {
     GroupCreated createGroup(Viewer.Admin viewer, @Valid @RequestBody CreateGroupRequest body) {
         var group = groups.create(viewer, body.name());
         return new GroupCreated(group.id(), group.name());
+    }
+
+    @PatchMapping("/api/t/{slug}/admin/groups/{id}")
+    GroupCreated renameGroup(Viewer.Admin viewer, @PathVariable UUID id, @Valid @RequestBody CreateGroupRequest body) {
+        var group = groups.rename(viewer, id, body.name());
+        return new GroupCreated(group.id(), group.name());
+    }
+
+    @DeleteMapping("/api/t/{slug}/admin/groups/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteGroup(Viewer.Admin viewer, @PathVariable UUID id) {
+        groups.delete(viewer, id);
     }
 
     record MembersRequest(@NotNull @Size(max = 500) List<@NotNull UUID> userIds) {}

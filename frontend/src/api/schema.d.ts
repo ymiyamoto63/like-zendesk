@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/t/{slug}/admin/groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteGroup"];
+        options?: never;
+        head?: never;
+        patch: operations["renameGroup"];
+        trace?: never;
+    };
     "/api/t/{slug}/admin/groups/{id}/members": {
         parameters: {
             query?: never;
@@ -84,6 +100,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/t/{slug}/admin/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["adminOrganizations"];
+        put?: never;
+        post: operations["createOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/organizations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteOrganization"];
+        options?: never;
+        head?: never;
+        patch: operations["renameOrganization"];
+        trace?: never;
+    };
     "/api/t/{slug}/admin/settings": {
         parameters: {
             query?: never;
@@ -98,6 +146,38 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["update_2"];
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["updateUser"];
         trace?: never;
     };
     "/api/t/{slug}/email-verifications": {
@@ -172,6 +252,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listOrganizations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -449,6 +545,28 @@ export interface components {
             public: boolean;
             ticket?: components["schemas"]["UpdateTicketRequest"];
         };
+        AdminUserPage: {
+            items: components["schemas"]["AdminUserResponse"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        AdminUserResponse: {
+            /** Format: date-time */
+            createdAt: string;
+            email: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            organization: components["schemas"]["OrganizationRef"] | null;
+            /** @enum {string} */
+            role: "requester" | "agent" | "admin";
+            /** @enum {string} */
+            status: "invited" | "unverified" | "active" | "inactive";
+        };
         ChangeSetResponse: {
             actor: components["schemas"]["Named"] | null;
             /** Format: uuid */
@@ -472,7 +590,7 @@ export interface components {
         };
         ConditionDto: {
             /** @enum {string} */
-            field: "status" | "priority" | "type" | "assignee" | "group" | "tags" | "created_at" | "updated_at";
+            field: "status" | "priority" | "type" | "assignee" | "group" | "organization" | "tags" | "created_at" | "updated_at";
             /** @enum {string} */
             op: "in" | "not_in" | "eq" | "is_null" | "is_not_null" | "has_any" | "has_all" | "within_days" | "older_than_days";
             /** @description 演算子による。in・has_any などは文字列の配列、eq は ID か @me、within_days は日数。is_null では省略 */
@@ -572,6 +690,21 @@ export interface components {
         NewRequestRequest: {
             body: string;
             subject: string;
+        };
+        OrganizationRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        OrganizationRequest: {
+            name: string;
+        };
+        OrganizationResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            members: number;
+            name: string;
         };
         PortalCommentResponse: {
             authorName: string;
@@ -727,6 +860,16 @@ export interface components {
             /** Format: int32 */
             version: number;
         };
+        UpdateUserRequest: {
+            active?: boolean;
+            /**
+             * Format: uuid
+             * @description null で所属なしにする。省略すると変えない
+             */
+            organizationId?: string | null;
+            /** @enum {string} */
+            role?: "agent" | "admin";
+        };
         UserSummary: {
             email: string;
             /** Format: uuid */
@@ -830,6 +973,54 @@ export interface operations {
             };
         };
     };
+    deleteGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    renameGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupCreated"];
+                };
+            };
+        };
+    };
     replaceMembers: {
         parameters: {
             query?: never;
@@ -879,6 +1070,102 @@ export interface operations {
             };
         };
     };
+    adminOrganizations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"][];
+                };
+            };
+        };
+    };
+    createOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"];
+                };
+            };
+        };
+    };
+    deleteOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    renameOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"];
+                };
+            };
+        };
+    };
     get_1: {
         parameters: {
             query?: never;
@@ -923,6 +1210,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: {
+                role?: string;
+                status?: string;
+                q?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserPage"];
+                };
+            };
+        };
+    };
+    updateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserResponse"];
                 };
             };
         };
@@ -1043,6 +1385,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    listOrganizations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"][];
                 };
             };
         };

@@ -55,6 +55,9 @@ class TicketFilterTest {
         assertInvalid("status", "in", List.of(1));
         assertInvalid("assignee", "eq", "someone");
         assertInvalid("group", "in", List.of("@me"));
+        assertInvalid("organization", "in", List.of("@my_groups"));
+        assertInvalid("organization", "in", List.of(1));
+        assertInvalid("organization", "eq", "00000000-0000-0000-0000-000000000000");
         assertInvalid("tags", "has_all", List.of("  "));
         assertInvalid("updated_at", "within_days", 0);
         assertInvalid("updated_at", "within_days", 1.5);
