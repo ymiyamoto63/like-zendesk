@@ -24,8 +24,9 @@ docker compose up --build
 
 | URL | 内容 |
 | --- | --- |
-| http://localhost:8080 | 画面（`/api` は API に転送） |
+| http://localhost:8080 | 画面（`/api` は API に転送）。`/signup` でテナントを作成する |
 | http://localhost:8080/api/actuator/health | API の死活 |
+| http://localhost:8080/api/docs | OpenAPI 定義 |
 | http://localhost:8025 | Mailpit（開発用のメール受信箱） |
 
 ## 開発
@@ -45,6 +46,13 @@ docker compose up -d db mailpit           # DB とメールだけをコンテナ
 (cd frontend && npm run lint && npm run typecheck && npm test)
 ```
 
+API を変えたら、OpenAPI 定義とフロントエンドの型を生成し直してコミットします（CI がずれを検査します）。
+
+```sh
+(cd backend && ./mvnw verify -Dopenapi.update=true)   # frontend/src/api/openapi.json を書き直す
+(cd frontend && npm run gen:api)                      # src/api/schema.d.ts を生成する
+```
+
 ## 構成
 
 | ディレクトリ | 内容 |
@@ -61,4 +69,4 @@ docker compose up -d db mailpit           # DB とメールだけをコンテナ
 
 ## ステータス
 
-開発初期段階です。[実装の順序](docs/design/README.md#3-次の段階)のうち、骨組み（段階 1）まで進んでいます。
+開発初期段階です。[実装の順序](docs/design/README.md#3-次の段階)のうち、骨組み（段階 1）と、テナント・認証（段階 2）のうちサインアップとログインまで進んでいます。

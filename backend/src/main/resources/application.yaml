@@ -1,10 +1,17 @@
 spring:
   application:
     name: like-zendesk
+  autoconfigure:
+    # ログインは独自の API（identity.web.SessionController）で行うため、Spring Security の既定ユーザーを作らない
+    exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   datasource:
     url: jdbc:postgresql://localhost:5432/likezendesk
     username: app_runtime
     password: app_runtime
+  session:
+    jdbc:
+      # 表は Flyway のマイグレーション（V2）で作る
+      initialize-schema: never
   flyway:
     # マイグレーションは表の所有者のロールで実行する。API の接続（app_runtime）より権限が広い。
     user: app_owner
@@ -12,6 +19,19 @@ spring:
 
 server:
   port: 8081
+  servlet:
+    session:
+      timeout: 14d
+      cookie:
+        http-only: true
+        same-site: lax
+        # 本番相当の環境では SERVER_SERVLET_SESSION_COOKIE_SECURE=true にする
+        secure: false
+
+springdoc:
+  api-docs:
+    path: /api/docs
+  default-produces-media-type: application/json
 
 management:
   endpoints:

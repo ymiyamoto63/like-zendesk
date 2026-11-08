@@ -1,0 +1,270 @@
+{
+  "components" : {
+    "schemas" : {
+      "Group" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "name" ],
+        "type" : "object"
+      },
+      "LoginRequest" : {
+        "properties" : {
+          "email" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "password" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "email", "password" ],
+        "type" : "object"
+      },
+      "MeResponse" : {
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          },
+          "groups" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Group"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "role" : {
+            "enum" : [ "requester", "agent", "admin" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "email", "groups", "id", "name", "role" ],
+        "type" : "object"
+      },
+      "SignupRequest" : {
+        "properties" : {
+          "adminName" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "email" : {
+            "format" : "email",
+            "maxLength" : 254,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "password" : {
+            "maxLength" : 72,
+            "minLength" : 8,
+            "type" : "string"
+          },
+          "slug" : {
+            "minLength" : 1,
+            "pattern" : "^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$",
+            "type" : "string"
+          },
+          "tenantName" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "adminName", "email", "password", "slug", "tenantName" ],
+        "type" : "object"
+      },
+      "SignupResponse" : {
+        "properties" : {
+          "me" : {
+            "$ref" : "#/components/schemas/MeResponse"
+          },
+          "slug" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "me", "slug" ],
+        "type" : "object"
+      },
+      "TenantInfo" : {
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "requesterSignup" : {
+            "enum" : [ "open", "domain_restricted" ],
+            "type" : "string"
+          },
+          "slug" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "name", "requesterSignup", "slug" ],
+        "type" : "object"
+      }
+    }
+  },
+  "info" : {
+    "title" : "like-zendesk API",
+    "version" : "v1"
+  },
+  "openapi" : "3.1.0",
+  "paths" : {
+    "/api/csrf" : {
+      "get" : {
+        "operationId" : "csrf",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "session-controller" ]
+      }
+    },
+    "/api/t/{slug}" : {
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TenantInfo"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "tenant-controller" ]
+      }
+    },
+    "/api/t/{slug}/me" : {
+      "get" : {
+        "operationId" : "me",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "session-controller" ]
+      }
+    },
+    "/api/t/{slug}/session" : {
+      "delete" : {
+        "operationId" : "logout",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "session-controller" ]
+      },
+      "post" : {
+        "operationId" : "login",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "session-controller" ]
+      }
+    },
+    "/api/tenants" : {
+      "post" : {
+        "operationId" : "signup",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SignupRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SignupResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "signup-controller" ]
+      }
+    }
+  }
+}

@@ -17,7 +17,7 @@
 | ルーティング | Vue Router | 要件 8.1 |
 | クライアントの状態 | Pinia | ログイン中のユーザー、UI の状態だけを持つ |
 | サーバーの状態 | TanStack Query（Vue） | 取得結果のキャッシュ、更新後の再取得、読み込み中・エラー状態を自前で書かずに済む |
-| UI 部品 | PrimeVue（Aura テーマ） | 並べ替え・ページング付きの表、日付選択、複数選択など、エージェント画面に要る部品が揃っている |
+| UI 部品 | PrimeVue 4（Aura テーマ） | 並べ替え・ページング付きの表、日付選択、複数選択など、エージェント画面に要る部品が揃っている。PrimeVue 5 からはライセンスキーが要る商用ライセンスになったため、MIT ライセンスの 4.x に固定する |
 | API クライアント | openapi-fetch ＋ openapi-typescript | OpenAPI から型を生成し、API の変更を型エラーで検出する |
 | Markdown | markdown-it（HTML 無効）＋ DOMPurify | 表示時にサニタイズする（F-C-4、N-5） |
 | テスト | Vitest、Vue Test Utils | 要件 8.1 |
