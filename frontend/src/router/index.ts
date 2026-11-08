@@ -36,9 +36,21 @@ export const router = createRouter({
       component: () => import('@/features/portal/pages/PortalHomePage.vue'),
       meta: { requires: 'requester' },
     },
+    // ビュー（段階 4）ができるまでは、チケット一覧を既定の画面にする
+    { path: '/t/:slug/agent', redirect: (to) => `/t/${String(to.params.slug)}/agent/tickets` },
     {
-      path: '/t/:slug/agent',
-      component: () => import('@/features/agent/pages/AgentHomePage.vue'),
+      path: '/t/:slug/agent/tickets',
+      component: () => import('@/features/tickets/pages/TicketListPage.vue'),
+      meta: { requires: 'staff' },
+    },
+    {
+      path: '/t/:slug/agent/tickets/new',
+      component: () => import('@/features/tickets/pages/NewTicketPage.vue'),
+      meta: { requires: 'staff' },
+    },
+    {
+      path: '/t/:slug/agent/tickets/:number(\\d+)',
+      component: () => import('@/features/tickets/pages/TicketDetailPage.vue'),
       meta: { requires: 'staff' },
     },
     {
