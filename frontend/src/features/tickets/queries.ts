@@ -99,6 +99,19 @@ export function useTicketMutations(slug: string, number: number) {
   }
 }
 
+/** 複数チケットの一括更新（F-T-8）。一覧、詳細、ビューの件数を読み直す。 */
+export function useBulkUpdate(slug: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (body: components['schemas']['BulkUpdateRequest']) =>
+      unwrap(api.PATCH('/api/t/{slug}/tickets', { params: { path: { slug } }, body })),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['tickets', slug] })
+      await client.invalidateQueries({ queryKey: ['views', slug] })
+    },
+  })
+}
+
 export function useCreateTicket(slug: string) {
   const client = useQueryClient()
   return useMutation({

@@ -145,7 +145,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["update_2"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/t/{slug}/admin/users": {
@@ -449,7 +449,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["update"];
         trace?: never;
     };
     "/api/t/{slug}/tickets/{number}": {
@@ -465,7 +465,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["update_1"];
+        patch: operations["update_2"];
         trace?: never;
     };
     "/api/t/{slug}/tickets/{number}/comments": {
@@ -545,7 +545,7 @@ export interface paths {
         delete: operations["delete"];
         options?: never;
         head?: never;
-        patch: operations["update"];
+        patch: operations["update_1"];
         trace?: never;
     };
     "/api/tenants": {
@@ -609,6 +609,28 @@ export interface components {
             /** Format: int64 */
             size: number;
         };
+        BulkUpdateRequest: {
+            addTags?: string[];
+            /**
+             * Format: uuid
+             * @description null で担当者を外す。省略すると変えない
+             */
+            assigneeId?: string | null;
+            /**
+             * Format: uuid
+             * @description null で担当グループを外す。省略すると変えない
+             */
+            groupId?: string | null;
+            /** @description 対象のチケット番号（100 件まで） */
+            numbers: number[];
+            removeTags?: string[];
+            /** @enum {string} */
+            status?: "new" | "open" | "pending" | "on_hold" | "solved" | "closed";
+        };
+        BulkUpdateResponse: {
+            failed: components["schemas"]["Failure"][];
+            updated: components["schemas"]["TicketResponse"][];
+        };
         ChangeSetResponse: {
             actor: components["schemas"]["Named"] | null;
             /** Format: uuid */
@@ -670,6 +692,11 @@ export interface components {
         };
         EventsResponse: {
             items: components["schemas"]["ChangeSetResponse"][];
+        };
+        Failure: {
+            code: string;
+            /** Format: int64 */
+            number: number;
         };
         FieldChangeResponse: {
             field: string;
@@ -1238,7 +1265,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -1833,6 +1860,32 @@ export interface operations {
             };
         };
     };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkUpdateResponse"];
+                };
+            };
+        };
+    };
     get: {
         parameters: {
             query?: never;
@@ -1856,7 +1909,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -2052,7 +2105,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
