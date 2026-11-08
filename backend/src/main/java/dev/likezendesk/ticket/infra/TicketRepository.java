@@ -104,11 +104,12 @@ public class TicketRepository {
      * {@code solvedBefore} より前に解決済みになったチケットをロックして読む（自動クローズ用）。他のプロセスがロック中の行は飛ばす。
      */
     public List<Ticket> lockSolvedBefore(Viewer.System viewer, Instant solvedBefore, int limit) {
-        var visible = TicketVisibility.of(viewer, "t");
-        return jdbc.sql(SELECT + " WHERE " + visible.sql()
-                        + " AND t.status = 'solved' AND t.solved_at <= :before"
-                        + " ORDER BY t.solved_at LIMIT :limit FOR UPDATE OF t SKIP LOCKED")
-                .params(visible.params())
+        return TicketScope.statement(
+                        jdbc,
+                        viewer,
+                        SELECT,
+                        " AND t.status = 'solved' AND t.solved_at <= :before"
+                                + " ORDER BY t.solved_at LIMIT :limit FOR UPDATE OF t SKIP LOCKED")
                 .param("before", Timestamp.from(solvedBefore))
                 .param("limit", limit)
                 .query(TicketRepository::map)
@@ -116,9 +117,7 @@ public class TicketRepository {
     }
 
     private Optional<Ticket> find(Viewer viewer, long number, String lock) {
-        var visible = TicketVisibility.of(viewer, "t");
-        return jdbc.sql(SELECT + " WHERE " + visible.sql() + " AND t.number = :number" + lock)
-                .params(visible.params())
+        return TicketScope.statement(jdbc, viewer, SELECT, " AND t.number = :number" + lock)
                 .param("number", number)
                 .query(TicketRepository::map)
                 .optional();
@@ -126,10 +125,12 @@ public class TicketRepository {
 
     /** 条件に合うチケットの 1 ページ。{@code query} が空でなければ全文検索も行う。 */
     public TicketPage search(Viewer.Staff viewer, TicketFilter filter, String query, int page, int size, Instant now) {
-        var where = where(viewer, filter, query, now);
-        var items = jdbc.sql(SELECT + " WHERE " + where.sql() + " ORDER BY " + TicketFilterSql.orderBy(filter.sort())
-                        + " LIMIT :limit OFFSET :offset")
-                .params(where.params())
+        var items = TicketScope.statement(
+                        jdbc,
+                        viewer,
+                        narrowed(viewer, filter, query, now),
+                        SELECT,
+                        " ORDER BY " + TicketFilterSql.orderBy(filter.sort()) + " LIMIT :limit OFFSET :offset")
                 .param("limit", size)
                 .param("offset", (long) page * size)
                 .query(TicketRepository::map)
@@ -139,31 +140,28 @@ public class TicketRepository {
 
     /** 依頼者自身のチケットを新しく更新された順に（F-P-2）。 */
     public TicketPage listOwn(Viewer.Requester viewer, int page, int size) {
-        var visible = TicketVisibility.of(viewer, "t");
-        var items = jdbc.sql(SELECT + " WHERE " + visible.sql()
-                        + " ORDER BY t.updated_at DESC, t.number DESC LIMIT :limit OFFSET :offset")
-                .params(visible.params())
+        var items = TicketScope.statement(
+                        jdbc, viewer, SELECT, " ORDER BY t.updated_at DESC, t.number DESC LIMIT :limit OFFSET :offset")
                 .param("limit", size)
                 .param("offset", (long) page * size)
                 .query(TicketRepository::map)
                 .list();
-        var total = jdbc.sql("SELECT count(*) FROM tickets t WHERE " + visible.sql())
-                .params(visible.params())
+        var total = TicketScope.statement(jdbc, viewer, "SELECT count(*) FROM tickets t", "")
                 .query(Long.class)
                 .single();
         return new TicketPage(items, total);
     }
 
     public long count(Viewer.Staff viewer, TicketFilter filter, String query, Instant now) {
-        var where = where(viewer, filter, query, now);
-        return jdbc.sql("SELECT count(*) FROM tickets t WHERE " + where.sql())
-                .params(where.params())
+        return TicketScope.statement(
+                        jdbc, viewer, narrowed(viewer, filter, query, now), "SELECT count(*) FROM tickets t", "")
                 .query(Long.class)
                 .single();
     }
 
-    private static SqlCondition where(Viewer.Staff viewer, TicketFilter filter, String query, Instant now) {
-        var where = TicketVisibility.of(viewer, "t").and(TicketFilterSql.where(viewer, filter, now));
+    /** 絞り込み条件と全文検索。可視性は {@link TicketScope} が足す。 */
+    private static SqlCondition narrowed(Viewer.Staff viewer, TicketFilter filter, String query, Instant now) {
+        var where = TicketFilterSql.where(viewer, filter, now);
         return query.isBlank() ? where : where.and(TicketFilterSql.search(query.strip()));
     }
 
@@ -171,14 +169,11 @@ public class TicketRepository {
      * {@code expectedVersion} の版を {@code ticket} の内容で置き換える。版が一致しなければ（他の人が先に更新した）false。
      */
     public boolean update(Viewer viewer, Ticket ticket, int expectedVersion) {
-        var visible = TicketVisibility.of(viewer, "t");
-        var updated = jdbc.sql("""
+        var updated = TicketScope.statement(jdbc, viewer, """
                         UPDATE tickets t SET subject = :subject, status = :status, priority = :priority, type = :type,
                                group_id = :group, assignee_id = :assignee, tags = :tags, version = :version,
                                updated_at = :updatedAt, solved_at = :solvedAt, closed_at = :closedAt
-                        WHERE %s AND t.id = :id AND t.version = :expected
-                        """.formatted(visible.sql()))
-                .params(visible.params())
+                        """, " AND t.id = :id AND t.version = :expected")
                 .param("id", ticket.id())
                 .param("expected", expectedVersion)
                 .param("subject", ticket.subject())
