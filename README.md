@@ -60,8 +60,10 @@ docker compose up --build
 性能確認用のテナント `demo-load`（チケット 10 万件、エージェント 20 人、依頼者 500 人）を作れます。API を起動した状態で実行してください。
 
 ```sh
-docker compose run --rm -e APP_SEED=load -e APP_SEED_EXIT=true api
+docker compose run --rm -e APP_SEED=load -e APP_SEED_EXIT=true -e APP_SCHEDULING_ENABLED=false api
 ```
+
+`APP_SCHEDULING_ENABLED=false` で、投入用のコンテナでは定期ジョブ（自動クローズ、メール送信、添付の削除）を動かしません。起動中の API と同じジョブが二重に走るのを防ぎます。
 
 管理者は `admin@load.example.com` / `demo-password` です。手元の計測では、一覧・詳細の API が 100ms 以内、全文検索が 200ms 程度で応答します（要件 N-1: 500ms、N-2: 1 秒）。
 
@@ -141,11 +143,13 @@ docker compose up -d db mailpit           # DB とメールだけをコンテナ
 (cd frontend && npm run lint && npm run typecheck && npm test)
 ```
 
-E2E（要件定義書 9 章の受け入れ基準 1〜13）は、`e2e` プロファイルで起動した環境に対して実行します。
+E2E（要件定義書 9 章の受け入れ基準 1〜13）は、`e2e` プロファイルで起動した環境に対して実行します。開発用の環境とポートが重なるので、先に止めてください。E2E は別のプロジェクト名（`-p like-zendesk-e2e`）で起動し、開発用のデータベース（デモデータ入り）を使い回しません。
 
 ```sh
-docker compose -f compose.yaml -f compose.e2e.yaml up --build --detach --wait
+docker compose down
+docker compose -p like-zendesk-e2e -f compose.yaml -f compose.e2e.yaml up --build --detach --wait
 (cd e2e && npm install && npx playwright install chromium && npx playwright test)
+docker compose -p like-zendesk-e2e down --volumes   # 後片付け
 ```
 
 API を変えたら、OpenAPI 定義とフロントエンドの型を生成し直してコミットします（CI がずれを検査します）。

@@ -16,6 +16,7 @@ const me = computed(() => useSessionStore().me[slug])
       <RouterLink
         :to="`/t/${slug}`"
         class="brand"
+        :aria-label="tenant?.name ?? 'ホーム'"
       >
         {{ tenant?.name ?? '' }}
       </RouterLink>

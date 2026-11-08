@@ -9,6 +9,7 @@ import dev.likezendesk.support.PostgresTestConfiguration;
 import dev.likezendesk.support.RecordingMailSender;
 import dev.likezendesk.support.TenantFixture;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,7 +34,17 @@ import org.springframework.context.annotation.Import;
 @Import({PostgresTestConfiguration.class, MailTestConfiguration.class})
 class TenantIsolationIT {
 
-    private static final Pattern VARIABLE = Pattern.compile("/([a-z-]+)/\\{([a-zA-Z]+)}");
+    /** {@code /groups/{id}} のように、コレクション名の直後に置いたパスの変数。 */
+    private static final Pattern VARIABLE = Pattern.compile("/([A-Za-z0-9_-]+)/\\{([A-Za-z0-9_]+)}");
+
+    private static final Set<String> METHODS = Set.of("get", "post", "put", "patch", "delete");
+
+    private static final Map<String, Object> VIEW_CONDITIONS =
+            Map.of("all", List.of(Map.of("field", "status", "op", "in", "value", List.of("new"))));
+
+    /** 乗っ取りの呼び出しのあとで、内容が変わっていないことを確かめる A の API。 */
+    private static final List<String> SNAPSHOTS =
+            List.of("/tickets/3", "/tickets/3/comments", "/groups", "/admin/organizations", "/admin/users", "/views");
 
     /** ログインしていなくても呼べる（テナント内のデータを返さない）エンドポイント。 */
     private static final Set<String> ANONYMOUS = Set.of(
@@ -58,12 +69,7 @@ class TenantIsolationIT {
             "PATCH /api/t/{slug}/tickets/{number}", Map.of("version", 0, "priority", "high"),
             "POST /api/t/{slug}/tickets/{number}/comments", Map.of("body", "乗っ取り", "public", true),
             "POST /api/t/{slug}/portal/tickets/{number}/comments", Map.of("body", "乗っ取り"),
-            "PATCH /api/t/{slug}/views/{id}",
-                    Map.of(
-                            "name",
-                            "乗っ取り",
-                            "conditions",
-                            Map.of("all", List.of(Map.of("field", "status", "op", "in", "value", List.of("new"))))));
+            "PATCH /api/t/{slug}/views/{id}", Map.of("name", "乗っ取り", "conditions", VIEW_CONDITIONS));
 
     @LocalServerPort
     int port;
@@ -108,19 +114,16 @@ class TenantIsolationIT {
                 requesterOfA.browser().upload(a.path("/attachments"), "log.txt", "text/plain", "error 809".getBytes());
         assertThat(attachment.status()).isEqualTo(201);
         var organization = a.admin.post(a.path("/admin/organizations"), Map.of("name", "営業部"));
-        var view = a.admin.post(
-                a.path("/views"),
-                Map.of(
-                        "name",
-                        "共有ビュー",
-                        "shared",
-                        true,
-                        "conditions",
-                        Map.of("all", List.of(Map.of("field", "status", "op", "in", "value", List.of("new"))))));
+        var view =
+                a.admin.post(a.path("/views"), Map.of("name", "共有ビュー", "shared", true, "conditions", VIEW_CONDITIONS));
         assertThat(view.status()).isEqualTo(201);
         var invited = "invitee@" + a.slug + ".test";
         assertThat(a.admin
                         .post(a.path("/admin/invitations"), Map.of("email", invited, "role", "agent"))
+                        .status())
+                .isEqualTo(202);
+        assertThat(a.browser()
+                        .post(a.path("/password-resets"), Map.of("email", agent.email()))
                         .status())
                 .isEqualTo(202);
         dispatcher.dispatchDue();
@@ -132,17 +135,18 @@ class TenantIsolationIT {
                 "attachments", attachment.body().path("id").asString(),
                 "views", view.body().path("id").asString(),
                 "invitations", mails.tokenSentTo(invited),
-                "password-resets", mails.tokenSentTo(invited),
+                "password-resets", mails.tokenSentTo(agent.email()),
                 "tickets", "3");
     }
 
     @Test
     void otherTenantCannotReachResourcesByTheirIds() {
         // B の管理者が、B のテナントのパスで A のリソースの ID を指定する
+        var before = snapshotOfA();
         var soft = new SoftAssertions();
         int checked = 0;
         for (var op : operations()) {
-            if (!VARIABLE.matcher(op.path().replace("/t/{slug}", "")).find()) {
+            if (!op.path().replace("/t/{slug}", "").contains("{")) {
                 continue;
             }
             var response = call(b.admin, op, b.slug);
@@ -152,13 +156,17 @@ class TenantIsolationIT {
         soft.assertAll();
         assertThat(checked).as("ID を取るエンドポイントの数").isGreaterThan(15);
         // 変更が届いていない
-        assertThat(requesterOfA
-                        .browser()
-                        .get(a.path("/portal/tickets/3"))
-                        .body()
-                        .path("subject")
-                        .asString())
-                .isEqualTo("VPN 2");
+        assertThat(snapshotOfA()).isEqualTo(before);
+    }
+
+    private Map<String, String> snapshotOfA() {
+        var result = new LinkedHashMap<String, String>();
+        for (var rest : SNAPSHOTS) {
+            var response = a.admin.get(a.path(rest));
+            assertThat(response.status()).as("GET %s", rest).isEqualTo(200);
+            result.put(rest, response.body().toString());
+        }
+        return result;
     }
 
     @Test
@@ -180,7 +188,7 @@ class TenantIsolationIT {
         var soft = new SoftAssertions();
         for (var op : operations()) {
             if (ANONYMOUS.contains(op.toString())
-                    || op.path().equals("/api/t/{slug}/me")
+                    || op.toString().equals("GET /api/t/{slug}/me")
                     || op.path().equals("/api/t/{slug}/attachments")
                             && op.method().equals("POST")
                     || op.path().matches("/api/t/\\{slug}/portal/tickets")) {
@@ -200,6 +208,9 @@ class TenantIsolationIT {
                 continue;
             }
             for (var method : spec.path(path).propertyNames()) {
+                if (!METHODS.contains(method)) {
+                    continue;
+                }
                 result.add(new Operation(method.toUpperCase(Locale.ROOT), path));
             }
         }
@@ -235,7 +246,12 @@ class TenantIsolationIT {
             m.appendReplacement(out, "/" + m.group(1) + "/" + Matcher.quoteReplacement(resourceOf(m.group(1), path)));
         }
         m.appendTail(out);
-        return out.toString();
+        var resolved = out.toString();
+        if (resolved.replace("/t/{slug}", "").contains("{")) {
+            throw new AssertionError(
+                    "Cannot resolve the path variables in " + path + ". Name them as /collection/{id}.");
+        }
+        return resolved;
     }
 
     private String resourceOf(String collection, String path) {
