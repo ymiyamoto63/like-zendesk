@@ -1,6 +1,7 @@
 package dev.likezendesk.tenant.infra;
 
 import dev.likezendesk.shared.TenantId;
+import dev.likezendesk.shared.Viewer;
 import dev.likezendesk.tenant.domain.RequesterSignup;
 import dev.likezendesk.tenant.domain.Tenant;
 import java.sql.ResultSet;
@@ -33,6 +34,14 @@ public class TenantDirectory {
                 .param("slug", slug)
                 .query(TenantDirectory::map)
                 .optional();
+    }
+
+    /** 閲覧者のテナント。通知の文面（テナント名・URL）を作るために使う。 */
+    public Tenant find(Viewer viewer) {
+        return jdbc.sql("SELECT " + COLUMNS + " FROM tenants WHERE id = :v_tenant")
+                .param("v_tenant", viewer.tenantId().value())
+                .query(TenantDirectory::map)
+                .single();
     }
 
     /** 全テナントの ID。定期ジョブがテナントごとに Viewer.System を作るために使う。 */

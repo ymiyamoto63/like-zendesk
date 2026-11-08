@@ -30,6 +30,12 @@ public class Tenants {
         this.clock = clock;
     }
 
+    /** 閲覧者のテナント（名前と slug）。 */
+    @Transactional(readOnly = true)
+    public Tenant current(Viewer viewer) {
+        return directory.find(viewer);
+    }
+
     /** 全テナントの ID。定期ジョブ用。 */
     @Transactional(readOnly = true)
     public List<TenantId> allIds() {
