@@ -137,6 +137,23 @@ public class TicketRepository {
         return new TicketPage(items, count(viewer, filter, query, now));
     }
 
+    /** 依頼者自身のチケットを新しく更新された順に（F-P-2）。 */
+    public TicketPage listOwn(Viewer.Requester viewer, int page, int size) {
+        var visible = TicketVisibility.of(viewer, "t");
+        var items = jdbc.sql(SELECT + " WHERE " + visible.sql()
+                        + " ORDER BY t.updated_at DESC, t.number DESC LIMIT :limit OFFSET :offset")
+                .params(visible.params())
+                .param("limit", size)
+                .param("offset", (long) page * size)
+                .query(TicketRepository::map)
+                .list();
+        var total = jdbc.sql("SELECT count(*) FROM tickets t WHERE " + visible.sql())
+                .params(visible.params())
+                .query(Long.class)
+                .single();
+        return new TicketPage(items, total);
+    }
+
     public long count(Viewer.Staff viewer, TicketFilter filter, String query, Instant now) {
         var where = where(viewer, filter, query, now);
         return jdbc.sql("SELECT count(*) FROM tickets t WHERE " + where.sql())

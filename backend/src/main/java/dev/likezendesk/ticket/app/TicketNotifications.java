@@ -86,12 +86,14 @@ class TicketNotifications {
     }
 
     private void enqueue(
-            Viewer viewer,
+            Viewer actor,
             NotificationKind kind,
             Ticket ticket,
             java.util.UUID recipientId,
             UserId author,
             String body) {
+        // 依頼者の操作でも担当者の宛先を引けるよう、宛先と文面はシステムとして読む
+        var viewer = new Viewer.System(actor.tenantId());
         var recipient =
                 directory.user(viewer, recipientId).filter(UserAccount::active).orElse(null);
         if (recipient == null) {

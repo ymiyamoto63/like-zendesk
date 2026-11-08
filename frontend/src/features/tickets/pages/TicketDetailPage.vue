@@ -2,7 +2,7 @@
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { ApiError } from '@/api/client'
 import AgentLayout from '@/layouts/AgentLayout.vue'
 import StatusBadge from '@/shared/components/StatusBadge.vue'
@@ -104,6 +104,12 @@ async function submitComment() {
         </header>
         <p class="meta">
           依頼者 {{ ticket.data.value.requester.name }} ・ 作成 {{ formatDateTime(ticket.data.value.createdAt) }}
+          <template v-if="ticket.data.value.followUpOf">
+            ・
+            <RouterLink :to="`/t/${slug}/agent/tickets/${ticket.data.value.followUpOf}`">
+              #{{ ticket.data.value.followUpOf }} の続き
+            </RouterLink>
+          </template>
         </p>
         <Message
           v-if="notice"

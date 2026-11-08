@@ -2,6 +2,7 @@ package dev.likezendesk.ticket.app;
 
 import dev.likezendesk.identity.app.Directory;
 import dev.likezendesk.shared.ApiException;
+import dev.likezendesk.shared.UserId;
 import dev.likezendesk.shared.Viewer;
 import dev.likezendesk.ticket.domain.Actor;
 import dev.likezendesk.ticket.domain.ChangeSet;
@@ -93,32 +94,64 @@ public class Tickets {
             case TicketStatusRules.Result.Ok(var s) -> s;
             case TicketStatusRules.Result.Rejected(var code) -> throw ApiException.rule(code, "Invalid status");
         };
+        return insert(
+                viewer,
+                new Ref(requester.id().value(), requester.name()),
+                command.subject(),
+                command.body(),
+                status,
+                command.priority(),
+                command.type(),
+                group,
+                assignee,
+                Ticket.normalizeTags(command.tags()),
+                null);
+    }
+
+    /**
+     * チケットと最初の公開コメント（本文）を書き、監査ログと通知を残す。作成者は閲覧者本人。スタッフの起票、依頼者の起票、クローズ後の返信からの起票で共有する。
+     */
+    Ticket insert(
+            Viewer viewer,
+            Ref requester,
+            String subject,
+            String body,
+            TicketStatus status,
+            Priority priority,
+            TicketType type,
+            @Nullable Ref group,
+            @Nullable Ref assignee,
+            List<String> tags,
+            @Nullable Ticket followUpOf) {
+        var author = authorOf(viewer);
         var now = clock.instant();
         var number = tickets.nextNumber(viewer);
-        var tags = Ticket.normalizeTags(command.tags());
         var id = tickets.insert(
                 viewer,
                 number,
                 new TicketRepository.NewTicket(
-                        command.subject().strip(),
-                        requester.id().value(),
+                        subject.strip(),
+                        requester.id(),
                         status,
-                        command.priority(),
-                        command.type(),
+                        priority,
+                        type,
                         group == null ? null : group.id(),
                         assignee == null ? null : assignee.id(),
                         tags,
-                        null),
+                        followUpOf == null ? null : followUpOf.id()),
                 now);
-        var commentId = comments.insert(viewer, id, viewer.userId(), command.body(), true, now);
+        var commentId = comments.insert(viewer, id, author, body, true, now);
         var created = new ArrayList<FieldChange>();
-        created.add(new FieldChange(
-                "created",
-                null,
-                Map.of("number", number, "subject", command.subject().strip())));
+        var summary = new java.util.LinkedHashMap<String, Object>();
+        summary.put("number", number);
+        summary.put("subject", subject.strip());
+        if (followUpOf != null) {
+            summary.put("followUpOf", followUpOf.number());
+        }
+        created.add(new FieldChange("created", null, summary));
         created.add(new FieldChange("status", null, status.dbValue()));
-        created.add(new FieldChange("priority", null, command.priority().dbValue()));
-        created.add(new FieldChange("type", null, command.type().dbValue()));
+        created.add(new FieldChange("priority", null, priority.dbValue()));
+        created.add(new FieldChange("type", null, type.dbValue()));
         if (group != null) {
             created.add(new FieldChange("group", null, Ticket.refValue(group)));
         }
@@ -129,10 +162,18 @@ public class Tickets {
             created.add(new FieldChange("tags", null, tags));
         }
         created.add(commentEvent(commentId, true));
-        events.insert(viewer, id, UUID.randomUUID(), viewer.userId(), created, now);
+        events.insert(viewer, id, UUID.randomUUID(), author, created, now);
         var ticket = tickets.find(viewer, number).orElseThrow();
-        notifications.created(viewer, ticket, command.body(), viewer.userId());
+        notifications.created(viewer, ticket, body, author);
         return ticket;
+    }
+
+    private static UserId authorOf(Viewer viewer) {
+        return switch (viewer) {
+            case Viewer.Staff s -> s.userId();
+            case Viewer.Requester r -> r.userId();
+            case Viewer.System _ -> throw new IllegalArgumentException("The system does not write tickets");
+        };
     }
 
     @Transactional(readOnly = true)
@@ -176,14 +217,21 @@ public class Tickets {
         var after = changes == null
                 ? ticket.apply(Ticket.Update.statusOnly(null), actor(viewer), now)
                 : apply(viewer, ticket, changes);
-        var commentId = comments.insert(viewer, ticket.id(), viewer.userId(), body, isPublic, now);
+        return addComment(viewer, ticket, after, body, isPublic);
+    }
+
+    /** ロック済みの {@code before} に、変更 {@code after} とコメントを 1 回の変更として書き、通知する。 */
+    Commented addComment(Viewer viewer, Ticket before, Ticket.Applied after, String body, boolean isPublic) {
+        var author = authorOf(viewer);
+        var now = clock.instant();
+        var commentId = comments.insert(viewer, before.id(), author, body, isPublic, now);
         var all = new ArrayList<>(after.changes());
         all.add(commentEvent(commentId, isPublic));
-        var touched = touch(after.ticket(), ticket, now);
-        save(viewer, ticket, touched, all);
-        notifications.assigned(viewer, ticket, touched, viewer.userId());
-        notifications.commented(viewer, touched, viewer.userId(), body, isPublic);
-        var comment = comments.list(viewer, ticket.id()).stream()
+        var touched = touch(after.ticket(), before, now);
+        save(viewer, before, touched, all);
+        notifications.assigned(viewer, before, touched, author);
+        notifications.commented(viewer, touched, author, body, isPublic);
+        var comment = comments.list(viewer, before.id()).stream()
                 .filter(c -> c.id().equals(commentId))
                 .findFirst()
                 .orElseThrow();
@@ -230,12 +278,13 @@ public class Tickets {
         return applied;
     }
 
-    private void save(Viewer.Staff viewer, Ticket before, Ticket after, List<FieldChange> changes) {
+    /** ロック済みのチケットを書き、監査ログを残す。 */
+    void save(Viewer viewer, Ticket before, Ticket after, List<FieldChange> changes) {
         if (!tickets.update(viewer, after, before.version())) {
             // 行をロックして版を確かめた後なので、ここには来ない
             throw new IllegalStateException("Ticket " + before.number() + " changed while locked");
         }
-        events.insert(viewer, before.id(), UUID.randomUUID(), viewer.userId(), changes, after.updatedAt());
+        events.insert(viewer, before.id(), UUID.randomUUID(), authorOf(viewer), changes, after.updatedAt());
     }
 
     /** 項目が変わらなくても、コメントの追加で更新日時と版を進める。 */
