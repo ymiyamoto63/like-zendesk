@@ -77,4 +77,53 @@ class TicketFilterTest {
     void defaultsToRecentlyUpdatedFirst() {
         assertThat(TicketFilter.of(List.of()).sort()).isEqualTo(TicketFilter.DEFAULT_SORT);
     }
+
+    @Test
+    void parsesConditionsIntoTypedCriteria() {
+        var org = UUID.randomUUID();
+        var group = UUID.randomUUID();
+        var filter = TicketFilter.of(List.of(
+                new TicketFilter.Condition("status", "not_in", List.of("solved", "closed")),
+                new TicketFilter.Condition("assignee", "eq", "@me"),
+                new TicketFilter.Condition("group", "in", List.of("@my_groups", group.toString())),
+                new TicketFilter.Condition("organization", "is_not_null", null),
+                new TicketFilter.Condition("organization", "in", List.of(org.toString())),
+                new TicketFilter.Condition("tags", "has_all", List.of("VPN")),
+                new TicketFilter.Condition("created_at", "older_than_days", 30)));
+
+        assertThat(filter.criteria())
+                .containsExactly(
+                        new Criterion.EnumIn(Criterion.EnumField.STATUS, List.of("solved", "closed"), true),
+                        new Criterion.AssigneeIsMe(),
+                        new Criterion.GroupIn(List.of(group), true),
+                        new Criterion.OrganizationPresence(true),
+                        new Criterion.OrganizationIn(List.of(org)),
+                        new Criterion.Tags(List.of("vpn"), true),
+                        new Criterion.Age(Criterion.TimeField.CREATED_AT, 30, false));
+    }
+
+    @Test
+    void criteriaRoundTripThroughTheStoredForm() {
+        var filter = TicketFilter.of(List.of(
+                new TicketFilter.Condition("priority", "in", List.of("high", "urgent")),
+                new TicketFilter.Condition("assignee", "is_null", null),
+                new TicketFilter.Condition("updated_at", "within_days", 7)));
+
+        var criteria = filter.criteria();
+        var restored = TicketFilter.of(
+                        criteria.stream().map(Criterion::toCondition).toList())
+                .criteria();
+
+        assertThat(restored).isEqualTo(criteria);
+    }
+
+    @Test
+    void rejectsTooManyConditions() {
+        var conditions = java.util.Collections.nCopies(
+                TicketFilter.MAX_CONDITIONS + 1, new TicketFilter.Condition("assignee", "is_null", null));
+        assertThatThrownBy(() -> TicketFilter.of(conditions).criteria())
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).code())
+                .isEqualTo("view.invalid_condition");
+    }
 }

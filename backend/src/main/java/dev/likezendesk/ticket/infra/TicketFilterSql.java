@@ -2,6 +2,7 @@ package dev.likezendesk.ticket.infra;
 
 import dev.likezendesk.shared.SqlCondition;
 import dev.likezendesk.shared.Viewer;
+import dev.likezendesk.ticket.domain.Criterion;
 import dev.likezendesk.ticket.domain.TicketFilter;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -45,77 +46,55 @@ final class TicketFilterSql {
         var sql = new ArrayList<String>();
         var params = new HashMap<String, Object>();
         params.put("v_tenant", viewer.tenantId().value());
-        for (int i = 0; i < filter.all().size(); i++) {
-            var c = filter.all().get(i);
-            var p = "f" + i;
-            sql.add(
-                    switch (c.field() + " " + c.op()) {
-                        case "status in", "priority in", "type in" -> {
-                            params.put(p, strings(c.value()));
-                            yield COLUMNS.get(c.field()) + " = ANY (:" + p + ")";
-                        }
-                        case "status not_in", "priority not_in", "type not_in" -> {
-                            params.put(p, strings(c.value()));
-                            yield "NOT (" + COLUMNS.get(c.field()) + " = ANY (:" + p + "))";
-                        }
-                        case "assignee eq" -> {
-                            params.put(
-                                    p,
-                                    TicketFilter.ME.equals(c.value())
-                                            ? viewer.userId().value()
-                                            : UUID.fromString((String) c.value()));
-                            yield "t.assignee_id = :" + p;
-                        }
-                        case "assignee is_null" -> "t.assignee_id IS NULL";
-                        case "assignee is_not_null" -> "t.assignee_id IS NOT NULL";
-                        case "group is_null" -> "t.group_id IS NULL";
-                        case "group is_not_null" -> "t.group_id IS NOT NULL";
-                        case "group in" -> groupIn(viewer, (List<?>) c.value(), p, params);
-                        // 依頼者の所属組織（F-A-4）
-                        case "organization in" -> {
-                            params.put(
-                                    p,
-                                    ((List<?>) c.value())
-                                            .stream()
-                                                    .map(v -> UUID.fromString((String) v))
-                                                    .toArray(UUID[]::new));
-                            yield REQUESTER_ORG + " = ANY (:" + p + ")";
-                        }
-                        case "organization is_null" -> REQUESTER_ORG + " IS NULL";
-                        case "organization is_not_null" -> REQUESTER_ORG + " IS NOT NULL";
-                        case "tags has_any" -> {
-                            params.put(p, strings(c.value()));
-                            yield "t.tags && CAST(:" + p + " AS text[])";
-                        }
-                        case "tags has_all" -> {
-                            params.put(p, strings(c.value()));
-                            yield "t.tags @> CAST(:" + p + " AS text[])";
-                        }
-                        case "created_at within_days", "updated_at within_days" -> {
-                            params.put(p, daysAgo(now, c.value()));
-                            yield COLUMNS.get(c.field()) + " >= :" + p;
-                        }
-                        case "created_at older_than_days", "updated_at older_than_days" -> {
-                            params.put(p, daysAgo(now, c.value()));
-                            yield COLUMNS.get(c.field()) + " < :" + p;
-                        }
-                        default -> throw new IllegalArgumentException("Unvalidated condition: " + c);
-                    });
+        var criteria = filter.criteria();
+        for (int i = 0; i < criteria.size(); i++) {
+            sql.add(translate(viewer, criteria.get(i), "f" + i, now, params));
         }
         return new SqlCondition(sql.isEmpty() ? "TRUE" : String.join(" AND ", sql), params);
     }
 
-    private static String groupIn(Viewer.Staff viewer, List<?> values, String p, Map<String, Object> params) {
+    private static String translate(
+            Viewer.Staff viewer, Criterion criterion, String p, Instant now, Map<String, Object> params) {
+        return switch (criterion) {
+            case Criterion.EnumIn e -> {
+                params.put(p, e.values().toArray(String[]::new));
+                var any = COLUMNS.get(e.field().key()) + " = ANY (:" + p + ")";
+                yield e.negated() ? "NOT (" + any + ")" : any;
+            }
+            case Criterion.AssigneeIsMe _ -> {
+                params.put(p, viewer.userId().value());
+                yield "t.assignee_id = :" + p;
+            }
+            case Criterion.AssigneeIs a -> {
+                params.put(p, a.id());
+                yield "t.assignee_id = :" + p;
+            }
+            case Criterion.AssigneePresence a -> a.present() ? "t.assignee_id IS NOT NULL" : "t.assignee_id IS NULL";
+            case Criterion.GroupPresence g -> g.present() ? "t.group_id IS NOT NULL" : "t.group_id IS NULL";
+            case Criterion.GroupIn g -> groupIn(viewer, g, p, params);
+            case Criterion.OrganizationIn o -> {
+                params.put(p, o.ids().toArray(UUID[]::new));
+                yield REQUESTER_ORG + " = ANY (:" + p + ")";
+            }
+            case Criterion.OrganizationPresence o -> REQUESTER_ORG + (o.present() ? " IS NOT NULL" : " IS NULL");
+            case Criterion.Tags t -> {
+                params.put(p, t.tags().toArray(String[]::new));
+                yield "t.tags " + (t.all() ? "@>" : "&&") + " CAST(:" + p + " AS text[])";
+            }
+            case Criterion.Age a -> {
+                params.put(p, Timestamp.from(now.minus(Duration.ofDays(a.days()))));
+                yield COLUMNS.get(a.field().key()) + (a.within() ? " >= :" : " < :") + p;
+            }
+        };
+    }
+
+    private static String groupIn(Viewer.Staff viewer, Criterion.GroupIn group, String p, Map<String, Object> params) {
         var parts = new ArrayList<String>();
-        var ids = values.stream()
-                .filter(v -> !TicketFilter.MY_GROUPS.equals(v))
-                .map(v -> UUID.fromString((String) v))
-                .toArray(UUID[]::new);
-        if (ids.length > 0) {
-            params.put(p, ids);
+        if (!group.ids().isEmpty()) {
+            params.put(p, group.ids().toArray(UUID[]::new));
             parts.add("t.group_id = ANY (:" + p + ")");
         }
-        if (values.contains(TicketFilter.MY_GROUPS)) {
+        if (group.includeMine()) {
             params.put("v_user", viewer.userId().value());
             parts.add("t.group_id IN (SELECT m.group_id FROM group_memberships m"
                     + " WHERE m.tenant_id = :v_tenant AND m.user_id = :v_user)");
@@ -139,13 +118,5 @@ final class TicketFilterSql {
         // 同じ値の行の順序を決め、ページをまたいで重複・欠落しないようにする
         keys.add("t.number DESC");
         return String.join(", ", keys);
-    }
-
-    private static String[] strings(Object value) {
-        return ((List<?>) value).stream().map(String::valueOf).toArray(String[]::new);
-    }
-
-    private static Timestamp daysAgo(Instant now, Object days) {
-        return Timestamp.from(now.minus(Duration.ofDays(((Number) days).longValue())));
     }
 }
