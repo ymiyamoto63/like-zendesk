@@ -155,8 +155,11 @@ test('受け入れ基準 1〜13', async ({ browser }) => {
     await otherPage.goto(`/t/${slug}/requests/${number}`)
     await expect(otherPage.getByText('このお問い合わせは見つかりません')).toBeVisible()
     await expect(otherPage.getByText(subject)).toHaveCount(0)
-    expect((await api(otherPage, 'GET', `/api/t/${slug}/requests/${number}`)).status).toBe(404)
-    expect((await api(otherPage, 'GET', `/api/t/${slug}/requests/${number}/comments`)).status).toBe(404)
+    for (const path of [`/api/t/${slug}/portal/tickets/${number}`, `/api/t/${slug}/portal/tickets/${number}/comments`]) {
+      // 起票した本人には見えるパスで確かめる
+      expect((await api(requesterPage, 'GET', path)).status).toBe(200)
+      expect((await api(otherPage, 'GET', path)).status).toBe(404)
+    }
     expect((await api(otherPage, 'GET', `/api/t/${slug}/tickets/${number}`)).status).toBe(404)
   })
 
@@ -168,6 +171,7 @@ test('受け入れ基準 1〜13', async ({ browser }) => {
     await expect(pageB.getByText(subject)).toHaveCount(0)
     await pageB.waitForURL(`**/t/${slug}/login**`)
     for (const path of [`/api/t/${slug}/tickets/${number}`, `/api/t/${slug}/tickets/${number}/comments`]) {
+      expect((await api(adminPage, 'GET', path)).status).toBe(200)
       expect((await api(pageB, 'GET', path)).status).toBe(401)
     }
     expect((await api(pageB, 'GET', `/api/t/${slugB}/tickets/${number}`)).status).toBe(404)
