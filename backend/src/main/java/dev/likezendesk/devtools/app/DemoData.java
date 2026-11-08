@@ -11,7 +11,6 @@ import dev.likezendesk.shared.Viewer;
 import dev.likezendesk.tenant.app.Tenants;
 import dev.likezendesk.tenant.domain.RequesterSignup;
 import dev.likezendesk.ticket.app.AutoClose;
-import dev.likezendesk.ticket.app.Requests;
 import dev.likezendesk.ticket.app.Tickets;
 import dev.likezendesk.ticket.domain.Patch;
 import dev.likezendesk.ticket.domain.Priority;
@@ -47,7 +46,6 @@ public class DemoData {
     private final Groups groups;
     private final Organizations organizations;
     private final Tickets tickets;
-    private final Requests requests;
     private final AutoClose autoClose;
     private final AdjustableClock clock;
 
@@ -58,7 +56,6 @@ public class DemoData {
             Groups groups,
             Organizations organizations,
             Tickets tickets,
-            Requests requests,
             AutoClose autoClose,
             AdjustableClock clock) {
         this.signup = signup;
@@ -67,7 +64,6 @@ public class DemoData {
         this.groups = groups;
         this.organizations = organizations;
         this.tickets = tickets;
-        this.requests = requests;
         this.autoClose = autoClose;
         this.clock = clock;
     }
@@ -194,7 +190,7 @@ public class DemoData {
 
     private void play(Story story, List<Viewer.Requester> requesters, List<Viewer.Staff> agents, List<UUID> groupIds) {
         var requester = requesters.get(story.requester());
-        var number = requests.create(requester, story.subject(), story.body(), List.of())
+        var number = tickets.create(requester, story.subject(), story.body(), List.of())
                 .number();
         if (story.flow() == Flow.NEW) {
             return;
@@ -215,7 +211,7 @@ public class DemoData {
             return;
         }
         later(Duration.ofHours(3));
-        requests.reply(requester, number, "確認しました。" + story.answer(), List.of());
+        tickets.reply(requester, number, "確認しました。" + story.answer(), List.of());
         if (story.flow() == Flow.REPLIED) {
             return;
         }

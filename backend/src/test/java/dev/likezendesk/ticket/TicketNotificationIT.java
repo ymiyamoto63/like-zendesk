@@ -17,7 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 
-/** チケットのメール通知（F-N-1〜3）。 */
+/** チケットのメール通知（F-N-1〜3、F-N-5）。 */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import({PostgresTestConfiguration.class, MailTestConfiguration.class})
 class TicketNotificationIT {
@@ -136,5 +136,21 @@ class TicketNotificationIT {
                 .isEqualTo(201);
         dispatcher.dispatchDue();
         assertThat(mails.countTo(suzuki.email())).isEqualTo(suzukiBefore + 2);
+    }
+
+    @Test
+    void assigneeIsToldWhenTheRequesterSolvesTheTicket() {
+        var number = create(
+                Map.of("groupId", infra.toString(), "assigneeId", suzuki.id().toString()));
+        var before = mails.countTo(suzuki.email());
+
+        var solved = requester.browser().post(tenant.path("/portal/tickets/" + number + "/solve"), Map.of());
+        assertThat(solved.status()).isEqualTo(200);
+        dispatcher.dispatchDue();
+
+        assertThat(mails.countTo(suzuki.email())).isEqualTo(before + 1);
+        var mail = mails.lastTo(suzuki.email());
+        assertThat(mail.getSubject()).contains("#" + number, "解決済みになりました");
+        assertThat(mail.getText()).contains("山田 花子").contains("/t/" + tenant.slug + "/agent/tickets/" + number);
     }
 }

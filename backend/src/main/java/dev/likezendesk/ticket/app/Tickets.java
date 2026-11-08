@@ -30,7 +30,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** スタッフによるチケットの作成・参照・更新とコメント（F-T、F-C、F-L）。 */
+/**
+ * チケットの作成・参照・更新とコメント。スタッフの操作（F-T、F-C、F-L）と依頼者ポータルの操作（F-P）を 1 つのインターフェースに持つ。
+ *
+ * <p>依頼者は自分のチケットの公開情報だけを扱える。閲覧者の型で受け付ける操作を分け、書き込みは必ず {@link #insert} /
+ * {@link #addComment} / {@link #save} を通るので、監査ログと通知の規則はここに集まる。
+ */
 @Service
 public class Tickets {
 
@@ -100,24 +105,22 @@ public class Tickets {
         };
         return insert(
                 viewer,
-                new Ref(requester.id().value(), requester.name()),
-                command.subject(),
-                command.body(),
-                command.attachmentIds(),
-                status,
-                command.priority(),
-                command.type(),
-                group,
-                assignee,
-                Ticket.normalizeTags(command.tags()),
-                null);
+                new Draft(
+                        new Ref(requester.id().value(), requester.name()),
+                        command.subject(),
+                        command.body(),
+                        command.attachmentIds(),
+                        status,
+                        command.priority(),
+                        command.type(),
+                        group,
+                        assignee,
+                        Ticket.normalizeTags(command.tags()),
+                        null));
     }
 
-    /**
-     * チケットと最初の公開コメント（本文）を書き、監査ログと通知を残す。作成者は閲覧者本人。スタッフの起票、依頼者の起票、クローズ後の返信からの起票で共有する。
-     */
-    Ticket insert(
-            Viewer viewer,
+    /** 起票するチケットの中身。スタッフの起票、依頼者の起票、クローズ後の返信からの起票で共有する。 */
+    private record Draft(
             Ref requester,
             String subject,
             String body,
@@ -128,7 +131,23 @@ public class Tickets {
             @Nullable Ref group,
             @Nullable Ref assignee,
             List<String> tags,
-            @Nullable Ticket followUpOf) {
+            @Nullable Ticket followUpOf) {}
+
+    /**
+     * チケットと最初の公開コメント（本文）を書き、監査ログと通知を残す。作成者は閲覧者本人。スタッフの起票、依頼者の起票、クローズ後の返信からの起票で共有する。
+     */
+    private Ticket insert(Viewer viewer, Draft draft) {
+        var requester = draft.requester();
+        var subject = draft.subject();
+        var body = draft.body();
+        var attachmentIds = draft.attachmentIds();
+        var status = draft.status();
+        var priority = draft.priority();
+        var type = draft.type();
+        var group = draft.group();
+        var assignee = draft.assignee();
+        var tags = draft.tags();
+        var followUpOf = draft.followUpOf();
         var author = authorOf(viewer);
         var now = clock.instant();
         var number = tickets.nextNumber(viewer);
@@ -233,7 +252,7 @@ public class Tickets {
     }
 
     /** ロック済みの {@code before} に、変更 {@code after} とコメントを 1 回の変更として書き、通知する。 */
-    Commented addComment(
+    private Commented addComment(
             Viewer viewer,
             Ticket before,
             Ticket.Applied after,
@@ -267,6 +286,97 @@ public class Tickets {
         return events.list(viewer, get(viewer, number).id());
     }
 
+    // ---- 依頼者ポータル（F-P-1〜4）。依頼者は自分のチケットの公開情報だけを扱える ----
+
+    /** 返信の結果。クローズ済みのチケットへの返信なら、{@code ticket} は新しく起票したチケット。 */
+    public record Replied(Comment comment, Ticket ticket, boolean followUp) {}
+
+    @Transactional(readOnly = true)
+    public TicketPage list(Viewer.Requester viewer, int page, int size) {
+        return tickets.listOwn(viewer, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public Ticket get(Viewer.Requester viewer, long number) {
+        return tickets.find(viewer, number).orElseThrow(ApiException::notFound);
+    }
+
+    /** 公開コメントだけ（CommentVisibility が絞る）。 */
+    @Transactional(readOnly = true)
+    public List<Comment> comments(Viewer.Requester viewer, long number) {
+        return comments.list(viewer, get(viewer, number).id());
+    }
+
+    /** 起票（F-P-1）。優先度は通常、種別は質問で始め、振り分けはエージェントが行う。 */
+    @Transactional
+    public Ticket create(Viewer.Requester viewer, String subject, String body, List<UUID> attachmentIds) {
+        return insert(
+                viewer,
+                new Draft(
+                        self(viewer),
+                        subject,
+                        body,
+                        attachmentIds,
+                        TicketStatus.NEW,
+                        Priority.NORMAL,
+                        TicketType.QUESTION,
+                        null,
+                        null,
+                        List.of(),
+                        null));
+    }
+
+    /**
+     * 返信（F-P-3）。保留・解決済みならオープンに戻す。クローズ済みなら、返信を本文にした新しいチケットを起票し、元のチケットにつなぐ（要件 7）。
+     */
+    @Transactional
+    public Replied reply(Viewer.Requester viewer, long number, String body, List<UUID> attachmentIds) {
+        var ticket = tickets.findForUpdate(viewer, number).orElseThrow(ApiException::notFound);
+        if (ticket.status() == TicketStatus.CLOSED) {
+            var followUp = insert(
+                    viewer,
+                    new Draft(
+                            self(viewer),
+                            ticket.subject(),
+                            body,
+                            attachmentIds,
+                            TicketStatus.NEW,
+                            ticket.priority(),
+                            ticket.type(),
+                            null,
+                            null,
+                            ticket.tags(),
+                            ticket));
+            var comment = comments.list(viewer, followUp.id()).getFirst();
+            return new Replied(comment, followUp, true);
+        }
+        var actor = new Actor.Requester(viewer.userId());
+        var after = ticket.apply(Ticket.Update.statusOnly(TicketStatus.OPEN), actor, clock.instant());
+        var commented = addComment(viewer, ticket, after, body, true, attachmentIds);
+        return new Replied(commented.comment(), commented.ticket(), false);
+    }
+
+    /**
+     * 解決済みにする（F-P-4）。担当者のいないチケットは解決にできない（422 {@code status.solved_requires_assignee}）。
+     * 担当者には解決したことをメールで知らせる（F-N-5）。
+     */
+    @Transactional
+    public Ticket solve(Viewer.Requester viewer, long number) {
+        var ticket = tickets.findForUpdate(viewer, number).orElseThrow(ApiException::notFound);
+        var actor = new Actor.Requester(viewer.userId());
+        var applied = ticket.apply(Ticket.Update.statusOnly(TicketStatus.SOLVED), actor, clock.instant());
+        if (!applied.changes().isEmpty()) {
+            save(viewer, ticket, applied.ticket(), applied.changes());
+            notifications.solved(viewer, applied.ticket(), viewer.userId());
+        }
+        return applied.ticket();
+    }
+
+    private Ref self(Viewer.Requester viewer) {
+        var me = directory.user(viewer, viewer.userId().value()).orElseThrow(ApiException::notFound);
+        return new Ref(me.id().value(), me.name());
+    }
+
     private Ticket lockAny(Viewer.Staff viewer, long number) {
         return tickets.findForUpdate(viewer, number).orElseThrow(ApiException::notFound);
     }
@@ -298,7 +408,7 @@ public class Tickets {
     }
 
     /** ロック済みのチケットを書き、監査ログを残す。 */
-    void save(Viewer viewer, Ticket before, Ticket after, List<FieldChange> changes) {
+    private void save(Viewer viewer, Ticket before, Ticket after, List<FieldChange> changes) {
         if (!tickets.update(viewer, after, before.version())) {
             // 行をロックして版を確かめた後なので、ここには来ない
             throw new IllegalStateException("Ticket " + before.number() + " changed while locked");

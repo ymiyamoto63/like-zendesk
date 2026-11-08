@@ -27,7 +27,10 @@ class MailTemplatesTest {
     @Test
     void everyTicketKindRenders() {
         for (var kind : new NotificationKind[] {
-            NotificationKind.TICKET_CREATED, NotificationKind.PUBLIC_COMMENT, NotificationKind.ASSIGNED
+            NotificationKind.TICKET_CREATED,
+            NotificationKind.PUBLIC_COMMENT,
+            NotificationKind.ASSIGNED,
+            NotificationKind.SOLVED
         }) {
             var mail = MailTemplates.render(kind, TICKET);
             assertThat(mail.subject()).startsWith("[デモ社] #12 ");
