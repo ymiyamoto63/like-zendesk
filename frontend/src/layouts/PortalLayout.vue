@@ -17,7 +17,7 @@ const me = computed(() => useSessionStore().me[slug])
         :to="`/t/${slug}`"
         class="brand"
       >
-        {{ tenant?.name ?? '' }} サポート
+        {{ tenant?.name ?? '' }}
       </RouterLink>
       <span class="me">{{ me?.name }}</span>
       <LogoutButton :slug="slug" />
