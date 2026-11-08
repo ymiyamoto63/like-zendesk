@@ -100,6 +100,21 @@ public class TicketRepository {
         return find(viewer, number, " FOR UPDATE OF t");
     }
 
+    /**
+     * {@code solvedBefore} より前に解決済みになったチケットをロックして読む（自動クローズ用）。他のプロセスがロック中の行は飛ばす。
+     */
+    public List<Ticket> lockSolvedBefore(Viewer.System viewer, Instant solvedBefore, int limit) {
+        var visible = TicketVisibility.of(viewer, "t");
+        return jdbc.sql(SELECT + " WHERE " + visible.sql()
+                        + " AND t.status = 'solved' AND t.solved_at <= :before"
+                        + " ORDER BY t.solved_at LIMIT :limit FOR UPDATE OF t SKIP LOCKED")
+                .params(visible.params())
+                .param("before", Timestamp.from(solvedBefore))
+                .param("limit", limit)
+                .query(TicketRepository::map)
+                .list();
+    }
+
     private Optional<Ticket> find(Viewer viewer, long number, String lock) {
         var visible = TicketVisibility.of(viewer, "t");
         return jdbc.sql(SELECT + " WHERE " + visible.sql() + " AND t.number = :number" + lock)

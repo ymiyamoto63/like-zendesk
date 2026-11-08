@@ -37,6 +37,7 @@ public class Tickets {
     private final CommentRepository comments;
     private final TicketEventRepository events;
     private final Directory directory;
+    private final TicketNotifications notifications;
     private final Clock clock;
 
     Tickets(
@@ -44,11 +45,13 @@ public class Tickets {
             CommentRepository comments,
             TicketEventRepository events,
             Directory directory,
+            TicketNotifications notifications,
             Clock clock) {
         this.tickets = tickets;
         this.comments = comments;
         this.events = events;
         this.directory = directory;
+        this.notifications = notifications;
         this.clock = clock;
     }
 
@@ -127,7 +130,9 @@ public class Tickets {
         }
         created.add(commentEvent(commentId, true));
         events.insert(viewer, id, UUID.randomUUID(), viewer.userId(), created, now);
-        return tickets.find(viewer, number).orElseThrow();
+        var ticket = tickets.find(viewer, number).orElseThrow();
+        notifications.created(viewer, ticket, command.body(), viewer.userId());
+        return ticket;
     }
 
     @Transactional(readOnly = true)
@@ -154,6 +159,7 @@ public class Tickets {
         var applied = apply(viewer, ticket, changes);
         if (!applied.changes().isEmpty()) {
             save(viewer, ticket, applied.ticket(), applied.changes());
+            notifications.assigned(viewer, ticket, applied.ticket(), viewer.userId());
         }
         return applied.ticket();
     }
@@ -175,6 +181,8 @@ public class Tickets {
         all.add(commentEvent(commentId, isPublic));
         var touched = touch(after.ticket(), ticket, now);
         save(viewer, ticket, touched, all);
+        notifications.assigned(viewer, ticket, touched, viewer.userId());
+        notifications.commented(viewer, touched, viewer.userId(), body, isPublic);
         var comment = comments.list(viewer, ticket.id()).stream()
                 .filter(c -> c.id().equals(commentId))
                 .findFirst()

@@ -5,7 +5,10 @@ import java.util.Locale;
 public enum NotificationKind {
     INVITATION,
     EMAIL_VERIFICATION,
-    PASSWORD_RESET;
+    PASSWORD_RESET,
+    TICKET_CREATED,
+    PUBLIC_COMMENT,
+    ASSIGNED;
 
     public String dbValue() {
         return name().toLowerCase(Locale.ROOT);
