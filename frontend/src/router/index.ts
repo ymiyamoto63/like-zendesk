@@ -14,6 +14,23 @@ export const router = createRouter({
     { path: '/', component: () => import('@/features/home/pages/HomePage.vue') },
     { path: '/signup', component: () => import('@/features/auth/pages/SignupPage.vue') },
     { path: '/t/:slug/login', component: () => import('@/features/auth/pages/LoginPage.vue') },
+    { path: '/t/:slug/register', component: () => import('@/features/auth/pages/RegisterPage.vue') },
+    {
+      path: '/t/:slug/verify-email/:token',
+      component: () => import('@/features/auth/pages/VerifyEmailPage.vue'),
+    },
+    {
+      path: '/t/:slug/invitations/:token',
+      component: () => import('@/features/auth/pages/AcceptInvitationPage.vue'),
+    },
+    {
+      path: '/t/:slug/password-reset',
+      component: () => import('@/features/auth/pages/RequestPasswordResetPage.vue'),
+    },
+    {
+      path: '/t/:slug/password-reset/:token',
+      component: () => import('@/features/auth/pages/ResetPasswordPage.vue'),
+    },
     {
       path: '/t/:slug',
       component: () => import('@/features/portal/pages/PortalHomePage.vue'),

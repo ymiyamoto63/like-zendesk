@@ -51,6 +51,18 @@ public final class ApiClient {
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))));
     }
 
+    public Response put(String path, Object body) {
+        return send(withCsrf(HttpRequest.newBuilder(uri(path)))
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))));
+    }
+
+    public Response patch(String path, Object body) {
+        return send(withCsrf(HttpRequest.newBuilder(uri(path)))
+                .header("Content-Type", "application/json")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))));
+    }
+
     public Response delete(String path) {
         return send(withCsrf(HttpRequest.newBuilder(uri(path))).DELETE());
     }

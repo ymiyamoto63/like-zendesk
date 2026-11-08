@@ -12,6 +12,10 @@ spring:
     jdbc:
       # 表は Flyway のマイグレーション（V2）で作る
       initialize-schema: never
+  mail:
+    # 開発時は Mailpit（compose.yaml）の SMTP に送る
+    host: localhost
+    port: 1025
   flyway:
     # マイグレーションは表の所有者のロールで実行する。API の接続（app_runtime）より権限が広い。
     user: app_owner
@@ -39,3 +43,7 @@ management:
       base-path: /api/actuator
       exposure:
         include: health
+
+app:
+  # メールに載せるリンクの起点。画面を配信する URL にする
+  base-url: http://localhost:8080

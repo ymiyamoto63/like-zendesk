@@ -62,6 +62,10 @@ public class Authentication {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "login.invalid_credentials", "Invalid email or password");
         }
         failures.clear(system, normalized);
+        if (!user.get().emailVerified()) {
+            // パスワードが合った後にだけ返すので、登録の有無は漏れない
+            throw new ApiException(HttpStatus.FORBIDDEN, "login.email_unverified", "Email address is not verified");
+        }
         return user.get().viewer();
     }
 

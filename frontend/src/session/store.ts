@@ -36,11 +36,16 @@ export const useSessionStore = defineStore('session', () => {
     me.value[slug] = null
   }
 
+  /** 招待の受諾やメールアドレスの確認で、API がログインさせたユーザーを記録する。 */
+  function loggedIn(slug: string, user: Me): void {
+    me.value[slug] = user
+  }
+
   async function signup(body: SignupRequest): Promise<Me> {
     const created = await unwrap(api.POST('/api/tenants', { body }))
     me.value[created.slug] = created.me
     return created.me
   }
 
-  return { me, load, login, logout, signup }
+  return { me, load, login, logout, loggedIn, signup }
 })

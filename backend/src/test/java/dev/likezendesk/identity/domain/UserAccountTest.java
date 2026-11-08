@@ -14,7 +14,7 @@ class UserAccountTest {
     private static final UserId USER = new UserId(UUID.randomUUID());
 
     private static UserAccount withRole(Role role) {
-        return new UserAccount(TENANT, USER, "a@example.com", "A", role, true, "hash");
+        return new UserAccount(TENANT, USER, "a@example.com", "A", role, true, true, "hash");
     }
 
     @Test

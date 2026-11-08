@@ -24,7 +24,9 @@ services:
   mailpit:
     image: axllent/mailpit:v1.27
     ports:
+      # 8025 は届いたメールを見る画面。1025（SMTP）は API をローカルで動かす開発時に使う
       - "${MAILPIT_PORT:-8025}:8025"
+      - "${SMTP_PORT:-1025}:1025"
 
   api:
     build:
@@ -34,6 +36,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/likezendesk
       SPRING_DATASOURCE_PASSWORD: ${APP_RUNTIME_PASSWORD:-app_runtime}
       SPRING_FLYWAY_PASSWORD: ${APP_OWNER_PASSWORD:-app_owner}
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+      # メールに載せるリンクの起点
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
     depends_on:
       db:
         condition: service_healthy
