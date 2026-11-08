@@ -41,6 +41,10 @@ services:
       # メールに載せるリンクの起点
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
       APP_ATTACHMENTS_DIR: /data/attachments
+      # dev プロファイルでは、起動時にデモ用の 2 テナントを作る（README のデモアカウント）。
+      # 10 万件の性能確認用データは README の手順で別に作る
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      APP_SEED: ${APP_SEED:-demo}
     volumes:
       - attachments:/data/attachments
     depends_on:

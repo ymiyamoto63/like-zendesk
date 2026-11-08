@@ -56,6 +56,15 @@ jobs:
       - run: docker compose up --build --detach --wait
       - name: API に画面と同じオリジンから届く
         run: curl --fail --silent --show-error http://localhost:8080/api/actuator/health | grep '"status":"UP"'
+      - name: デモアカウントでログインできる（F-D-1）
+        run: |
+          curl --fail --silent --cookie-jar jar --cookie jar http://localhost:8080/api/csrf
+          token=$(awk '/XSRF-TOKEN/ {print $7}' jar)
+          curl --fail --silent --show-error --cookie-jar jar --cookie jar \
+            -H "X-XSRF-TOKEN: $token" -H 'Content-Type: application/json' \
+            -d '{"email":"admin@support.example.com","password":"demo-password"}' \
+            http://localhost:8080/api/t/demo-support/session
+          curl --fail --silent --show-error --cookie jar 'http://localhost:8080/api/t/demo-support/tickets?size=1' | grep '"total":10'
       - name: SPA のルーティング
         run: curl --fail --silent --show-error http://localhost:8080/t/example/agent | grep '<div id="app">'
       - if: failure()
