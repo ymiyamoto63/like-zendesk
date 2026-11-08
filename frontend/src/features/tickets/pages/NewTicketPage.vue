@@ -7,6 +7,8 @@ import Textarea from 'primevue/textarea'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import FormField from '@/features/auth/components/FormField.vue'
+import type { Attachment } from '@/shared/attachments'
+import AttachmentPicker from '@/shared/components/AttachmentPicker.vue'
 import AgentLayout from '@/layouts/AgentLayout.vue'
 import TicketFields from '../components/TicketFields.vue'
 import type { TicketDraft } from '../draft'
@@ -23,6 +25,7 @@ const requester = ref<UserSummary | null>(null)
 const suggestions = ref<UserSummary[]>([])
 const subject = ref('')
 const body = ref('')
+const attachments = ref<Attachment[]>([])
 const draft = ref<TicketDraft>({
   status: 'new',
   priority: 'normal',
@@ -57,6 +60,7 @@ async function submit() {
       groupId: draft.value.groupId ?? undefined,
       assigneeId: draft.value.assigneeId ?? undefined,
       tags: draft.value.tags,
+      attachmentIds: attachments.value.map((a) => a.id),
     })
     await router.push(`/t/${slug}/agent/tickets/${ticket.number}`)
   } catch (e) {
@@ -117,6 +121,11 @@ async function submit() {
             required
           />
         </FormField>
+        <AttachmentPicker
+          v-model="attachments"
+          :slug="slug"
+          class="spaced"
+        />
         <Button
           type="submit"
           label="作成する"
@@ -148,5 +157,8 @@ h1 {
   .new {
     grid-template-columns: 1fr;
   }
+}
+.spaced {
+  margin-bottom: 1rem;
 }
 </style>

@@ -180,6 +180,38 @@ export interface paths {
         patch: operations["updateUser"];
         trace?: never;
     };
+    "/api/t/{slug}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/attachments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/t/{slug}/email-verifications": {
         parameters: {
             query?: never;
@@ -541,6 +573,8 @@ export interface components {
             password: string;
         };
         AddCommentRequest: {
+            /** @description POST /attachments で受け取った添付 ID（10 個まで） */
+            attachmentIds?: string[];
             body: string;
             public: boolean;
             ticket?: components["schemas"]["UpdateTicketRequest"];
@@ -567,6 +601,14 @@ export interface components {
             /** @enum {string} */
             status: "invited" | "unverified" | "active" | "inactive";
         };
+        AttachmentResponse: {
+            contentType: string;
+            filename: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            size: number;
+        };
         ChangeSetResponse: {
             actor: components["schemas"]["Named"] | null;
             /** Format: uuid */
@@ -580,6 +622,7 @@ export interface components {
             ticket: components["schemas"]["TicketResponse"];
         };
         CommentResponse: {
+            attachments: components["schemas"]["AttachmentResponse"][];
             author: components["schemas"]["Named"];
             body: string;
             /** Format: date-time */
@@ -605,6 +648,8 @@ export interface components {
         CreateTicketRequest: {
             /** Format: uuid */
             assigneeId?: string;
+            /** @description POST /attachments で受け取った添付 ID（10 個まで） */
+            attachmentIds?: string[];
             body: string;
             /** Format: uuid */
             groupId?: string;
@@ -688,6 +733,8 @@ export interface components {
             password: string;
         };
         NewRequestRequest: {
+            /** @description POST /attachments で受け取った添付 ID（10 個まで） */
+            attachmentIds?: string[];
             body: string;
             subject: string;
         };
@@ -707,6 +754,7 @@ export interface components {
             name: string;
         };
         PortalCommentResponse: {
+            attachments: components["schemas"]["AttachmentResponse"][];
             authorName: string;
             body: string;
             /** Format: date-time */
@@ -753,6 +801,8 @@ export interface components {
             password: string;
         };
         ReplyRequest: {
+            /** @description POST /attachments で受け取った添付 ID（10 個まで） */
+            attachmentIds?: string[];
             body: string;
         };
         ReplyResponse: {
@@ -1265,6 +1315,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminUserResponse"];
+                };
+            };
+        };
+    };
+    upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentResponse"];
+                };
+            };
+        };
+    };
+    download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
                 };
             };
         };

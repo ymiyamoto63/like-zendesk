@@ -5,7 +5,7 @@ import { buildTimeline, formatValue } from './timeline'
 const sato = { id: 'u1', name: '佐藤' }
 
 function comment(id: string, at: string, isPublic = true): Comment {
-  return { id, author: sato, body: id, public: isPublic, createdAt: at }
+  return { id, author: sato, body: id, public: isPublic, createdAt: at, attachments: [] }
 }
 
 function changes(at: string, ...list: [string, unknown, unknown][]): ChangeSet {

@@ -19,6 +19,16 @@
       },
       "AddCommentRequest" : {
         "properties" : {
+          "attachmentIds" : {
+            "description" : "POST /attachments で受け取った添付 ID（10 個まで）",
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 10,
+            "minItems" : 0,
+            "type" : "array"
+          },
           "body" : {
             "maxLength" : 65536,
             "minLength" : 0,
@@ -93,6 +103,26 @@
         "required" : [ "createdAt", "email", "id", "name", "organization", "role", "status" ],
         "type" : "object"
       },
+      "AttachmentResponse" : {
+        "properties" : {
+          "contentType" : {
+            "type" : "string"
+          },
+          "filename" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "size" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "contentType", "filename", "id", "size" ],
+        "type" : "object"
+      },
       "ChangeSetResponse" : {
         "properties" : {
           "actor" : {
@@ -134,6 +164,12 @@
       },
       "CommentResponse" : {
         "properties" : {
+          "attachments" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AttachmentResponse"
+            },
+            "type" : "array"
+          },
           "author" : {
             "$ref" : "#/components/schemas/Named"
           },
@@ -152,7 +188,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "author", "body", "createdAt", "id", "public" ],
+        "required" : [ "attachments", "author", "body", "createdAt", "id", "public" ],
         "type" : "object"
       },
       "ConditionDto" : {
@@ -204,6 +240,16 @@
           "assigneeId" : {
             "format" : "uuid",
             "type" : "string"
+          },
+          "attachmentIds" : {
+            "description" : "POST /attachments で受け取った添付 ID（10 個まで）",
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 10,
+            "minItems" : 0,
+            "type" : "array"
           },
           "body" : {
             "maxLength" : 65536,
@@ -441,6 +487,16 @@
       },
       "NewRequestRequest" : {
         "properties" : {
+          "attachmentIds" : {
+            "description" : "POST /attachments で受け取った添付 ID（10 個まで）",
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 10,
+            "minItems" : 0,
+            "type" : "array"
+          },
           "body" : {
             "maxLength" : 65536,
             "minLength" : 0,
@@ -498,6 +554,12 @@
       },
       "PortalCommentResponse" : {
         "properties" : {
+          "attachments" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AttachmentResponse"
+            },
+            "type" : "array"
+          },
           "authorName" : {
             "type" : "string"
           },
@@ -517,7 +579,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "authorName", "body", "createdAt", "id", "mine" ],
+        "required" : [ "attachments", "authorName", "body", "createdAt", "id", "mine" ],
         "type" : "object"
       },
       "PortalCommentsResponse" : {
@@ -614,6 +676,16 @@
       },
       "ReplyRequest" : {
         "properties" : {
+          "attachmentIds" : {
+            "description" : "POST /attachments で受け取った添付 ID（10 個まで）",
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 10,
+            "minItems" : 0,
+            "type" : "array"
+          },
           "body" : {
             "maxLength" : 65536,
             "minLength" : 0,
@@ -1546,6 +1618,83 @@
           }
         },
         "tags" : [ "admin-controller" ]
+      }
+    },
+    "/api/t/{slug}/attachments" : {
+      "post" : {
+        "operationId" : "upload",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "file" ],
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AttachmentResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "attachment-controller" ]
+      }
+    },
+    "/api/t/{slug}/attachments/{id}" : {
+      "get" : {
+        "operationId" : "download",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "attachment-controller" ]
       }
     },
     "/api/t/{slug}/email-verifications" : {

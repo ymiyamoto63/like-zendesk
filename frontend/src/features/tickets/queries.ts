@@ -91,7 +91,7 @@ export function useTicketMutations(slug: string, number: number) {
       onSuccess: refresh,
     }),
     comment: useMutation({
-      mutationFn: (body: { body: string; public: boolean; ticket?: TicketChanges }) =>
+      mutationFn: (body: components['schemas']['AddCommentRequest']) =>
         unwrap(api.POST('/api/t/{slug}/tickets/{number}/comments', { ...path, body })),
       onSuccess: (result) => refresh(result.ticket),
     }),

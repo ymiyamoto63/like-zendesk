@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /** エラー応答を RFC 9457 の problem+json にそろえる（docs/design/architecture.md 2.11）。 */
@@ -37,6 +38,15 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 .toList();
         problem.setProperty("errors", errors);
         return ResponseEntity.badRequest().body(problem);
+    }
+
+    /** 添付が 20MB を超えた（F-T-7）。 */
+    @Override
+    protected @Nullable ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException e, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, "Files must be 20 MB or smaller");
+        problem.setProperty("code", "attachment.too_large");
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(problem);
     }
 
     /** {@code @RequestParam} などの検証エラー。 */

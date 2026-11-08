@@ -5,6 +5,8 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { ApiError } from '@/api/client'
 import AgentLayout from '@/layouts/AgentLayout.vue'
+import type { Attachment } from '@/shared/attachments'
+import AttachmentLinks from '@/shared/components/AttachmentLinks.vue'
 import StatusBadge from '@/shared/components/StatusBadge.vue'
 import { formatDateTime } from '@/shared/labels'
 import CommentComposer from '../components/CommentComposer.vue'
@@ -25,6 +27,7 @@ const { update, comment, reload } = useTicketMutations(slug, number)
 const draft = ref<TicketDraft | null>(null)
 const body = ref('')
 const isPublic = ref(true)
+const attachments = ref<Attachment[]>([])
 const error = ref('')
 const notice = ref('')
 
@@ -73,10 +76,16 @@ async function saveFields() {
 
 async function submitComment() {
   const ok = await handle(() =>
-    comment.mutateAsync({ body: body.value, public: isPublic.value, ticket: changes.value ?? undefined }),
+    comment.mutateAsync({
+      body: body.value,
+      public: isPublic.value,
+      ticket: changes.value ?? undefined,
+      attachmentIds: attachments.value.map((a) => a.id),
+    }),
   )
   if (ok) {
     body.value = ''
+    attachments.value = []
     void reload()
   }
 }
@@ -142,6 +151,10 @@ async function submitComment() {
               <p class="body">
                 {{ item.comment.body }}
               </p>
+              <AttachmentLinks
+                :slug="slug"
+                :attachments="item.comment.attachments"
+              />
             </article>
             <p
               v-else-if="item.kind === 'created'"
@@ -169,6 +182,8 @@ async function submitComment() {
           v-model:body="body"
           v-model:is-public="isPublic"
           v-model:status="status"
+          v-model:attachments="attachments"
+          :slug="slug"
           :submitting="comment.isPending.value"
           @submit="submitComment"
         />

@@ -34,8 +34,8 @@ function ticket(version: number, extra: Partial<Ticket> = {}): Ticket {
 }
 
 const comments = [
-  { id: 'c1', author: { id: 'u1', name: '佐藤' }, body: '本文です', public: true, createdAt: '2026-11-08T00:00:00Z' },
-  { id: 'c2', author: { id: 'u1', name: '佐藤' }, body: 'ベンダー確認中', public: false, createdAt: '2026-11-08T01:00:00Z' },
+  { id: 'c1', author: { id: 'u1', name: '佐藤' }, body: '本文です', public: true, createdAt: '2026-11-08T00:00:00Z', attachments: [] },
+  { id: 'c2', author: { id: 'u1', name: '佐藤' }, body: 'ベンダー確認中', public: false, createdAt: '2026-11-08T01:00:00Z', attachments: [] },
 ]
 
 async function mountPage(onComment: (body: unknown) => Response) {
@@ -108,7 +108,12 @@ describe('TicketDetailPage', () => {
     wrapper.findComponent(CommentComposer).vm.$emit('update:status', 'pending')
     await wrapper.get('form.composer').trigger('submit')
     await flushPromises()
-    expect(posted).toEqual([{ body: 'ログを添付してください。', public: true, ticket: { version: 1, status: 'pending' } }])
+    expect(posted).toEqual([{
+        body: 'ログを添付してください。',
+        public: true,
+        ticket: { version: 1, status: 'pending' },
+        attachmentIds: [],
+      },])
     expect((wrapper.get('#comment-body').element as HTMLTextAreaElement).value).toBe('')
   })
 
