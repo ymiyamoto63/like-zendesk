@@ -2,13 +2,15 @@
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import { computed, ref, watch } from 'vue'
-import { options, priorityLabels, selectableStatuses, typeLabels } from '@/shared/labels'
+import { options, priorityLabels, selectableStatuses, statusLabels, typeLabels } from '@/shared/labels'
 import { assigneeOptions, parseTags, withGroup, type TicketDraft } from '../draft'
 import type { Group } from '../queries'
 
 const props = defineProps<{ groups: Group[]; showStatus?: boolean; disabled?: boolean }>()
 const draft = defineModel<TicketDraft>({ required: true })
 
+// クローズは選べないが、クローズしたチケットでは表示はする
+const statuses = computed(() => (draft.value.status === 'closed' ? options(statusLabels) : selectableStatuses))
 const assignees = computed(() => assigneeOptions(props.groups, draft.value.groupId))
 const tagsText = ref(draft.value.tags.join(', '))
 watch(
@@ -29,7 +31,7 @@ function set<K extends keyof TicketDraft>(key: K, value: TicketDraft[K]) {
       <span>状態</span>
       <Select
         :model-value="draft.status"
-        :options="selectableStatuses"
+        :options="statuses"
         option-label="label"
         option-value="value"
         :disabled="disabled"

@@ -71,3 +71,34 @@ jobs:
         run: docker compose logs
       - if: always()
         run: docker compose down --volumes
+
+  e2e:
+    # 受け入れ基準 1〜13（N-9）を、compose で起動した環境に対して画面操作で確かめる
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - run: docker compose -f compose.yaml -f compose.e2e.yaml up --build --detach --wait
+      - run: npm ci
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npx playwright test
+        working-directory: e2e
+        env:
+          CI: "true"
+      - if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down --volumes
