@@ -1,9 +1,11 @@
 package dev.likezendesk.ticket.infra;
 
+import dev.likezendesk.shared.SqlCondition;
 import dev.likezendesk.shared.Viewer;
 import dev.likezendesk.ticket.domain.Priority;
 import dev.likezendesk.ticket.domain.Ref;
 import dev.likezendesk.ticket.domain.Ticket;
+import dev.likezendesk.ticket.domain.TicketFilter;
 import dev.likezendesk.ticket.domain.TicketPage;
 import dev.likezendesk.ticket.domain.TicketStatus;
 import dev.likezendesk.ticket.domain.TicketType;
@@ -107,21 +109,30 @@ public class TicketRepository {
                 .optional();
     }
 
-    /** 更新日時の新しい順。ビューと検索は段階 4 で加える。 */
-    public TicketPage list(Viewer.Staff viewer, int page, int size) {
-        var visible = TicketVisibility.of(viewer, "t");
-        var items = jdbc.sql(SELECT + " WHERE " + visible.sql()
-                        + " ORDER BY t.updated_at DESC, t.number DESC LIMIT :limit OFFSET :offset")
-                .params(visible.params())
+    /** 条件に合うチケットの 1 ページ。{@code query} が空でなければ全文検索も行う。 */
+    public TicketPage search(Viewer.Staff viewer, TicketFilter filter, String query, int page, int size, Instant now) {
+        var where = where(viewer, filter, query, now);
+        var items = jdbc.sql(SELECT + " WHERE " + where.sql() + " ORDER BY " + TicketFilterSql.orderBy(filter.sort())
+                        + " LIMIT :limit OFFSET :offset")
+                .params(where.params())
                 .param("limit", size)
                 .param("offset", (long) page * size)
                 .query(TicketRepository::map)
                 .list();
-        var total = jdbc.sql("SELECT count(*) FROM tickets t WHERE " + visible.sql())
-                .params(visible.params())
+        return new TicketPage(items, count(viewer, filter, query, now));
+    }
+
+    public long count(Viewer.Staff viewer, TicketFilter filter, String query, Instant now) {
+        var where = where(viewer, filter, query, now);
+        return jdbc.sql("SELECT count(*) FROM tickets t WHERE " + where.sql())
+                .params(where.params())
                 .query(Long.class)
                 .single();
-        return new TicketPage(items, total);
+    }
+
+    private static SqlCondition where(Viewer.Staff viewer, TicketFilter filter, String query, Instant now) {
+        var where = TicketVisibility.of(viewer, "t").and(TicketFilterSql.where(viewer, filter, now));
+        return query.isBlank() ? where : where.and(TicketFilterSql.search(query.strip()));
     }
 
     /**

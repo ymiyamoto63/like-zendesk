@@ -69,7 +69,7 @@ dev.likezendesk
 | `domain` | 業務ルール（ステータス遷移など）。Spring にも DB にも依存しない純粋な Java。 | `shared` |
 | `infra` | リポジトリ（`JdbcClient` による SQL）、ファイル保存、SMTP | `domain`、`shared` |
 
-機能をまたぐ呼び出しは、相手の `app` 層の公開クラスだけを経由する（その引数・戻り値になる `domain` の型は参照してよい）。ArchUnit でこの依存方向を検査する。
+機能をまたぐ呼び出しは、相手の `app` 層の公開クラスだけを経由する。相手の `domain` の型（値と業務ルール。Spring にも DB にも依存しない）は、どの層からも参照してよい。例えば `view` 機能は、チケットの絞り込み条件（`ticket.domain.TicketFilter`）を保存・検証に使う。ArchUnit でこの依存方向を検査する。
 
 ### 2.2 閲覧者（Viewer）
 

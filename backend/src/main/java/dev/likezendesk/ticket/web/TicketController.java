@@ -9,8 +9,10 @@ import dev.likezendesk.ticket.domain.ChangeSet;
 import dev.likezendesk.ticket.domain.Comment;
 import dev.likezendesk.ticket.domain.Patch;
 import dev.likezendesk.ticket.domain.Priority;
+import dev.likezendesk.ticket.domain.TicketFilter;
 import dev.likezendesk.ticket.domain.TicketStatus;
 import dev.likezendesk.ticket.domain.TicketType;
+import dev.likezendesk.view.app.Views;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -20,7 +22,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -43,9 +47,11 @@ class TicketController {
     private static final int MAX_TAGS = 20;
 
     private final Tickets tickets;
+    private final Views views;
 
-    TicketController(Tickets tickets) {
+    TicketController(Tickets tickets, Views views) {
         this.tickets = tickets;
+        this.views = views;
     }
 
     record CreateTicketRequest(
@@ -167,14 +173,37 @@ class TicketController {
 
     record TicketListResponse(List<TicketResponse> items, long total, int page, int size) {}
 
+    /**
+     * ビューの条件でチケットを探す（F-V-1〜4）。{@code q} があれば件名・本文・コメントを部分一致で探す。
+     *
+     * <p>{@code sort} は項目名をカンマで区切り、先頭の {@code -} で降順にする（例: {@code -priority,updatedAt}）。省略するとビューの並び順。
+     */
     @GetMapping("/api/t/{slug}/tickets")
     TicketListResponse list(
             Viewer.Staff viewer,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "builtin:all") @Size(max = 100) String view,
+            @RequestParam(defaultValue = "") @Size(max = 200) String q,
+            @RequestParam(defaultValue = "") @Pattern(regexp = "^$|^-?[a-zA-Z]+(,-?[a-zA-Z]+){0,2}$") String sort,
+            @RequestParam(defaultValue = "0") @Min(0) @Max(10_000) int page,
             @RequestParam(defaultValue = "25") @Min(1) @Max(100) int size) {
-        var result = tickets.list(viewer, page, size);
+        var result = views.tickets(viewer, view, q.strip(), parseSort(sort), page, size);
         return new TicketListResponse(
                 result.items().stream().map(TicketResponse::of).toList(), result.total(), page, size);
+    }
+
+    /** {@code -updatedAt} を {@code updated_at} の降順にする。項目名の検証は {@link TicketFilter#validated()} が行う。 */
+    private static List<TicketFilter.Sort> parseSort(String sort) {
+        if (sort.isEmpty()) {
+            return List.of();
+        }
+        return Arrays.stream(sort.split(","))
+                .map(part -> {
+                    var descending = part.startsWith("-");
+                    var name = descending ? part.substring(1) : part;
+                    return new TicketFilter.Sort(
+                            name.replaceAll("([A-Z])", "_$1").toLowerCase(Locale.ROOT), descending);
+                })
+                .toList();
     }
 
     @PostMapping("/api/t/{slug}/tickets")

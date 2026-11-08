@@ -16,19 +16,19 @@
 ### 1.1 一覧の取得
 
 ```
-GET /api/t/{slug}/tickets?view=builtin:my-unsolved&sort=-updatedAt&page=1&size=25
+GET /api/t/{slug}/tickets?view=builtin:my-unsolved&sort=-updatedAt&page=0&size=25
 ```
 
 ```json
 {
   "items": [ ... ],
-  "page": 1,
+  "page": 0,
   "size": 25,
   "total": 1234
 }
 ```
 
-- `size` の上限は 100。`sort` は項目名で、先頭の `-` は降順を表す。
+- `page` は 0 から数える。`size` の上限は 100。`sort` は項目名をカンマで区切り（最大 3 つ）、先頭の `-` は降順を表す。省略するとビューの並び順。
 
 ### 1.2 エージェント用とポータル用の分離
 

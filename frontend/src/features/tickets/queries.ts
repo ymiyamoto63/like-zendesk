@@ -14,20 +14,32 @@ export type NewTicket = components['schemas']['CreateTicketRequest']
 export const PAGE_SIZE = 25
 
 const keys = {
-  list: (slug: string, page: number) => ['tickets', slug, 'list', page] as const,
+  list: (slug: string, query: ListQuery) => ['tickets', slug, 'list', query] as const,
   ticket: (slug: string, number: number) => ['tickets', slug, number] as const,
   comments: (slug: string, number: number) => ['tickets', slug, number, 'comments'] as const,
   events: (slug: string, number: number) => ['tickets', slug, number, 'events'] as const,
   groups: (slug: string) => ['groups', slug] as const,
 }
 
-export function useTicketList(slug: string, page: Ref<number>) {
+/** 一覧の条件。URL のクエリと 1 対 1 に対応する（docs/design/frontend.md 3.1）。`page` は 0 から。 */
+export type ListQuery = { view: string; q: string; sort: string; page: number }
+
+export function useTicketList(slug: string, query: Ref<ListQuery>) {
   return useQuery({
-    queryKey: computed(() => keys.list(slug, page.value)),
+    queryKey: computed(() => keys.list(slug, query.value)),
     queryFn: () =>
       unwrap(
         api.GET('/api/t/{slug}/tickets', {
-          params: { path: { slug }, query: { page: page.value, size: PAGE_SIZE } },
+          params: {
+            path: { slug },
+            query: {
+              view: query.value.view,
+              q: query.value.q || undefined,
+              sort: query.value.sort || undefined,
+              page: query.value.page,
+              size: PAGE_SIZE,
+            },
+          },
         }),
       ),
     placeholderData: keepPreviousData,
@@ -71,6 +83,7 @@ export function useTicketMutations(slug: string, number: number) {
   const refresh = (ticket: Ticket) => {
     client.setQueryData(keys.ticket(slug, number), ticket)
     void client.invalidateQueries({ queryKey: ['tickets', slug] })
+    void client.invalidateQueries({ queryKey: ['views', slug] })
   }
   return {
     update: useMutation({
@@ -90,6 +103,9 @@ export function useCreateTicket(slug: string) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: (body: NewTicket) => unwrap(api.POST('/api/t/{slug}/tickets', { params: { path: { slug } }, body })),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['tickets', slug] }),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['tickets', slug] })
+      await client.invalidateQueries({ queryKey: ['views', slug] })
+    },
   })
 }

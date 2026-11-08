@@ -11,6 +11,7 @@ import dev.likezendesk.ticket.domain.Priority;
 import dev.likezendesk.ticket.domain.Ref;
 import dev.likezendesk.ticket.domain.Ticket;
 import dev.likezendesk.ticket.domain.Ticket.FieldChange;
+import dev.likezendesk.ticket.domain.TicketFilter;
 import dev.likezendesk.ticket.domain.TicketPage;
 import dev.likezendesk.ticket.domain.TicketStatus;
 import dev.likezendesk.ticket.domain.TicketStatusRules;
@@ -134,9 +135,16 @@ public class Tickets {
         return tickets.find(viewer, number).orElseThrow(ApiException::notFound);
     }
 
+    /** 条件と全文検索に合うチケットの 1 ページ（F-V-1〜4）。条件は呼び出し側で検証済みであること。 */
     @Transactional(readOnly = true)
-    public TicketPage list(Viewer.Staff viewer, int page, int size) {
-        return tickets.list(viewer, page, size);
+    public TicketPage search(Viewer.Staff viewer, TicketFilter filter, String query, int page, int size) {
+        return tickets.search(viewer, filter, query, page, size, clock.instant());
+    }
+
+    /** ビューの件数（F-V-5）。 */
+    @Transactional(readOnly = true)
+    public long count(Viewer.Staff viewer, TicketFilter filter) {
+        return tickets.count(viewer, filter, "", clock.instant());
     }
 
     /** 項目を変える（F-T-5、F-T-6）。他の人が先に更新していたら 409。 */
