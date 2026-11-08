@@ -34,7 +34,22 @@ export const router = createRouter({
     },
     {
       path: '/t/:slug',
-      component: () => import('@/features/portal/pages/PortalHomePage.vue'),
+      component: () => import('@/features/portal/pages/RequestListPage.vue'),
+      meta: { requires: 'requester' },
+    },
+    {
+      path: '/t/:slug/requests',
+      component: () => import('@/features/portal/pages/RequestListPage.vue'),
+      meta: { requires: 'requester' },
+    },
+    {
+      path: '/t/:slug/requests/new',
+      component: () => import('@/features/portal/pages/NewRequestPage.vue'),
+      meta: { requires: 'requester' },
+    },
+    {
+      path: '/t/:slug/requests/:number(\\d+)',
+      component: () => import('@/features/portal/pages/RequestDetailPage.vue'),
       meta: { requires: 'requester' },
     },
     { path: '/t/:slug/agent', redirect: (to) => `/t/${String(to.params.slug)}/agent/views/${DEFAULT_VIEW}` },
