@@ -4,12 +4,15 @@ import Select from 'primevue/select'
 import SelectButton from 'primevue/selectbutton'
 import Textarea from 'primevue/textarea'
 import { computed } from 'vue'
+import type { Attachment } from '@/shared/attachments'
+import AttachmentPicker from '@/shared/components/AttachmentPicker.vue'
 import { selectableStatuses, type Status } from '@/shared/labels'
 
-defineProps<{ submitting: boolean; disabled?: boolean }>()
+defineProps<{ slug: string; submitting: boolean; disabled?: boolean }>()
 const body = defineModel<string>('body', { required: true })
 const isPublic = defineModel<boolean>('isPublic', { required: true })
 const status = defineModel<Status>('status', { required: true })
+const attachments = defineModel<Attachment[]>('attachments', { required: true })
 const emit = defineEmits<{ submit: [] }>()
 
 const kinds = [
@@ -41,6 +44,11 @@ const canSubmit = computed(() => body.value.trim().length > 0)
       auto-resize
       :disabled="disabled"
       :placeholder="isPublic ? '依頼者への返信（依頼者に送られます）' : '社内メモ（依頼者には見えません）'"
+    />
+    <AttachmentPicker
+      v-model="attachments"
+      :slug="slug"
+      :disabled="disabled"
     />
     <div class="actions">
       <label>

@@ -2,3 +2,5 @@
 app:
   scheduling:
     enabled: false
+  attachments:
+    dir: target/test-attachments

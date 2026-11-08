@@ -8,6 +8,8 @@ import { useRoute, useRouter } from 'vue-router'
 import FormField from '@/features/auth/components/FormField.vue'
 import { errorMessage } from '@/features/auth/messages'
 import PortalLayout from '@/layouts/PortalLayout.vue'
+import type { Attachment } from '@/shared/attachments'
+import AttachmentPicker from '@/shared/components/AttachmentPicker.vue'
 import { useSubmitRequest } from '../queries'
 
 const route = useRoute()
@@ -16,12 +18,17 @@ const slug = String(route.params.slug)
 const submit = useSubmitRequest(slug)
 const subject = ref('')
 const body = ref('')
+const attachments = ref<Attachment[]>([])
 const error = ref('')
 
 async function send() {
   error.value = ''
   try {
-    const ticket = await submit.mutateAsync({ subject: subject.value, body: body.value })
+    const ticket = await submit.mutateAsync({
+      subject: subject.value,
+      body: body.value,
+      attachmentIds: attachments.value.map((a) => a.id),
+    })
     await router.push({ path: `/t/${slug}/requests/${ticket.number}`, query: { submitted: '1' } })
   } catch (e) {
     error.value = errorMessage(e)
@@ -67,6 +74,11 @@ async function send() {
           required
         />
       </FormField>
+      <AttachmentPicker
+        v-model="attachments"
+        :slug="slug"
+        class="spaced"
+      />
       <Button
         type="submit"
         label="送信する"
@@ -88,5 +100,8 @@ h1 {
 }
 .form :deep(button[type='submit']) {
   align-self: flex-start;
+}
+.spaced {
+  margin-bottom: 1rem;
 }
 </style>

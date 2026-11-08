@@ -15,6 +15,7 @@ import dev.likezendesk.ticket.infra.CommentRepository;
 import dev.likezendesk.ticket.infra.TicketRepository;
 import java.time.Clock;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,12 +63,13 @@ public class Requests {
 
     /** 起票（F-P-1）。優先度は通常、種別は質問で始め、振り分けはエージェントが行う。 */
     @Transactional
-    public Ticket create(Viewer.Requester viewer, String subject, String body) {
+    public Ticket create(Viewer.Requester viewer, String subject, String body, List<UUID> attachmentIds) {
         return tickets.insert(
                 viewer,
                 self(viewer),
                 subject,
                 body,
+                attachmentIds,
                 TicketStatus.NEW,
                 Priority.NORMAL,
                 TicketType.QUESTION,
@@ -81,7 +83,7 @@ public class Requests {
      * 返信（F-P-3）。保留・解決済みならオープンに戻す。クローズ済みなら、返信を本文にした新しいチケットを起票し、元のチケットにつなぐ（要件 7）。
      */
     @Transactional
-    public Replied reply(Viewer.Requester viewer, long number, String body) {
+    public Replied reply(Viewer.Requester viewer, long number, String body, List<UUID> attachmentIds) {
         var ticket = repository.findForUpdate(viewer, number).orElseThrow(ApiException::notFound);
         if (ticket.status() == TicketStatus.CLOSED) {
             var followUp = tickets.insert(
@@ -89,6 +91,7 @@ public class Requests {
                     self(viewer),
                     ticket.subject(),
                     body,
+                    attachmentIds,
                     TicketStatus.NEW,
                     ticket.priority(),
                     ticket.type(),
@@ -101,7 +104,7 @@ public class Requests {
         }
         var actor = new Actor.Requester(viewer.userId());
         var after = ticket.apply(Ticket.Update.statusOnly(TicketStatus.OPEN), actor, clock.instant());
-        var commented = tickets.addComment(viewer, ticket, after, body, true);
+        var commented = tickets.addComment(viewer, ticket, after, body, true, attachmentIds);
         return new Replied(commented.comment(), commented.ticket(), false);
     }
 

@@ -67,6 +67,35 @@ public final class ApiClient {
         return send(withCsrf(HttpRequest.newBuilder(uri(path))).DELETE());
     }
 
+    /** multipart/form-data で 1 ファイルを送る（項目名 {@code file}）。 */
+    public Response upload(String path, String filename, String contentType, byte[] content) {
+        var boundary = "----test" + System.nanoTime();
+        var head = ("--" + boundary + "\r\n"
+                        + "Content-Disposition: form-data; name=\"file\"; filename=\"" + filename + "\"\r\n"
+                        + "Content-Type: " + contentType + "\r\n\r\n")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var tail = ("\r\n--" + boundary + "--\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var body = new java.io.ByteArrayOutputStream();
+        body.writeBytes(head);
+        body.writeBytes(content);
+        body.writeBytes(tail);
+        return send(withCsrf(HttpRequest.newBuilder(uri(path)))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())));
+    }
+
+    /** JSON ではない応答（ダウンロード）をそのまま受け取る。 */
+    public HttpResponse<byte[]> raw(String path) {
+        try {
+            return http.send(HttpRequest.newBuilder(uri(path)).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+        } catch (IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
     private HttpRequest.Builder withCsrf(HttpRequest.Builder builder) {
         if (!sendCsrfToken) {
             return builder;

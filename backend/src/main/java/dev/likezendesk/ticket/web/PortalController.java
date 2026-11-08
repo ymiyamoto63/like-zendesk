@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
@@ -70,7 +71,8 @@ class PortalController {
             String authorName,
             @Schema(description = "閲覧している依頼者自身が書いたか") boolean mine,
             String body,
-            Instant createdAt) {
+            Instant createdAt,
+            List<AttachmentResponse> attachments) {
 
         static PortalCommentResponse of(Comment c, Viewer.Requester viewer) {
             return new PortalCommentResponse(
@@ -78,7 +80,8 @@ class PortalController {
                     c.author().name(),
                     c.author().id().equals(viewer.userId().value()),
                     c.body(),
-                    c.createdAt());
+                    c.createdAt(),
+                    AttachmentResponse.of(c.attachments()));
         }
     }
 
@@ -86,9 +89,16 @@ class PortalController {
 
     record NewRequestRequest(
             @NotBlank @Size(max = 250) String subject,
-            @NotBlank @Size(max = 65536) String body) {}
+            @NotBlank @Size(max = 65536) String body,
 
-    record ReplyRequest(@NotBlank @Size(max = 65536) String body) {}
+            @Schema(description = "POST /attachments で受け取った添付 ID（10 個まで）") @Size(max = 10) @Nullable
+            List<@NotNull UUID> attachmentIds) {}
+
+    record ReplyRequest(
+            @NotBlank @Size(max = 65536) String body,
+
+            @Schema(description = "POST /attachments で受け取った添付 ID（10 個まで）") @Size(max = 10) @Nullable
+            List<@NotNull UUID> attachmentIds) {}
 
     record ReplyResponse(
             PortalCommentResponse comment,
@@ -112,7 +122,8 @@ class PortalController {
     @PostMapping("/api/t/{slug}/portal/tickets")
     @ResponseStatus(HttpStatus.CREATED)
     PortalTicketResponse create(Viewer.Requester viewer, @Valid @RequestBody NewRequestRequest body) {
-        return PortalTicketResponse.of(requests.create(viewer, body.subject(), body.body()));
+        return PortalTicketResponse.of(
+                requests.create(viewer, body.subject(), body.body(), TicketController.ids(body.attachmentIds())));
     }
 
     @GetMapping("/api/t/{slug}/portal/tickets/{number}")
@@ -130,7 +141,7 @@ class PortalController {
     @PostMapping("/api/t/{slug}/portal/tickets/{number}/comments")
     @ResponseStatus(HttpStatus.CREATED)
     ReplyResponse reply(Viewer.Requester viewer, @PathVariable long number, @Valid @RequestBody ReplyRequest body) {
-        var replied = requests.reply(viewer, number, body.body());
+        var replied = requests.reply(viewer, number, body.body(), TicketController.ids(body.attachmentIds()));
         return new ReplyResponse(
                 PortalCommentResponse.of(replied.comment(), viewer),
                 PortalTicketResponse.of(replied.ticket()),

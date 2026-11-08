@@ -40,6 +40,9 @@ services:
       SPRING_MAIL_PORT: 1025
       # メールに載せるリンクの起点
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      APP_ATTACHMENTS_DIR: /data/attachments
+    volumes:
+      - attachments:/data/attachments
     depends_on:
       db:
         condition: service_healthy
@@ -68,3 +71,4 @@ services:
 
 volumes:
   db-data:
+  attachments:

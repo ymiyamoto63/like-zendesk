@@ -16,6 +16,11 @@ spring:
     # 開発時は Mailpit（compose.yaml）の SMTP に送る
     host: localhost
     port: 1025
+  servlet:
+    multipart:
+      # 添付は 1 ファイル 20MB まで（F-T-7）。nginx の client_max_body_size も合わせる
+      max-file-size: 20MB
+      max-request-size: 21MB
   flyway:
     # マイグレーションは表の所有者のロールで実行する。API の接続（app_runtime）より権限が広い。
     user: app_owner
@@ -47,3 +52,6 @@ management:
 app:
   # メールに載せるリンクの起点。画面を配信する URL にする
   base-url: http://localhost:8080
+  attachments:
+    # 添付の保存先（compose ではボリューム）
+    dir: data/attachments

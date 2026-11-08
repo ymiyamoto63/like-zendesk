@@ -75,7 +75,10 @@ class TicketController {
 
             @Nullable UUID groupId,
             @Nullable UUID assigneeId,
-            @Size(max = MAX_TAGS) @Nullable List<@NotBlank @Size(max = 50) String> tags) {}
+            @Size(max = MAX_TAGS) @Nullable List<@NotBlank @Size(max = 50) String> tags,
+
+            @Schema(description = "POST /attachments で受け取った添付 ID（10 個まで）") @Size(max = 10) @Nullable
+            List<@NotNull UUID> attachmentIds) {}
 
     /**
      * 送った項目だけを変える（api.md 3.2）。{@code groupId} と {@code assigneeId} は、null を送ると値を外し、省略すると変えない。
@@ -219,7 +222,8 @@ class TicketController {
                         body.type() == null ? TicketType.QUESTION : TicketType.fromDb(body.type()),
                         body.groupId(),
                         body.assigneeId(),
-                        body.tags() == null ? List.of() : body.tags())));
+                        body.tags() == null ? List.of() : body.tags(),
+                        ids(body.attachmentIds()))));
     }
 
     @GetMapping("/api/t/{slug}/tickets/{number}")
@@ -238,14 +242,16 @@ class TicketController {
             TicketResponse.Named author,
             String body,
             @JsonProperty("public") boolean isPublic,
-            Instant createdAt) {
+            Instant createdAt,
+            List<AttachmentResponse> attachments) {
         static CommentResponse of(Comment c) {
             return new CommentResponse(
                     c.id(),
                     new TicketResponse.Named(c.author().id(), c.author().name()),
                     c.body(),
                     c.isPublic(),
-                    c.createdAt());
+                    c.createdAt(),
+                    AttachmentResponse.of(c.attachments()));
         }
     }
 
@@ -259,7 +265,10 @@ class TicketController {
     record AddCommentRequest(
             @NotBlank @Size(max = 65536) String body,
             @JsonProperty("public") @NotNull Boolean isPublic,
-            @Valid @Nullable UpdateTicketRequest ticket) {}
+            @Valid @Nullable UpdateTicketRequest ticket,
+
+            @Schema(description = "POST /attachments で受け取った添付 ID（10 個まで）") @Size(max = 10) @Nullable
+            List<@NotNull UUID> attachmentIds) {}
 
     record CommentAdded(CommentResponse comment, TicketResponse ticket) {}
 
@@ -273,8 +282,13 @@ class TicketController {
                 number,
                 body.body(),
                 body.isPublic(),
+                ids(body.attachmentIds()),
                 body.ticket() == null ? null : body.ticket().toChanges());
         return new CommentAdded(CommentResponse.of(result.comment()), TicketResponse.of(result.ticket()));
+    }
+
+    static List<UUID> ids(@Nullable List<UUID> attachmentIds) {
+        return attachmentIds == null ? List.of() : attachmentIds;
     }
 
     record EventsResponse(List<ChangeSetResponse> items) {}

@@ -8,6 +8,9 @@ import { ApiError } from '@/api/client'
 import { errorMessage } from '@/features/auth/messages'
 import { ticketErrorMessage } from '@/features/tickets/messages'
 import PortalLayout from '@/layouts/PortalLayout.vue'
+import type { Attachment } from '@/shared/attachments'
+import AttachmentLinks from '@/shared/components/AttachmentLinks.vue'
+import AttachmentPicker from '@/shared/components/AttachmentPicker.vue'
 import { formatDateTime } from '@/shared/labels'
 import PortalStatus from '../components/PortalStatus.vue'
 import { canSolve, replyNotice } from '../labels'
@@ -21,6 +24,7 @@ const { ticket, comments } = useRequest(slug, number)
 const { reply, solve } = useRequestMutations(slug, number)
 
 const body = ref('')
+const attachments = ref<Attachment[]>([])
 const error = ref('')
 // 起票直後とクローズ後の返信からの起票では、移動先のこの画面で案内を出す
 const notice = ref(
@@ -39,8 +43,9 @@ async function send() {
   if (!current || !body.value.trim()) return
   error.value = ''
   try {
-    const result = await reply.mutateAsync(body.value)
+    const result = await reply.mutateAsync({ body: body.value, attachmentIds: attachments.value.map((a) => a.id) })
     body.value = ''
+    attachments.value = []
     if (result.followUp) {
       await router.push({ path: `/t/${slug}/requests/${result.ticket.number}`, query: { followUp: '1' } })
       return
@@ -117,6 +122,10 @@ async function markSolved() {
           <p class="body">
             {{ comment.body }}
           </p>
+          <AttachmentLinks
+            :slug="slug"
+            :attachments="comment.attachments"
+          />
         </li>
       </ol>
       <form
@@ -130,6 +139,10 @@ async function markSolved() {
           rows="4"
           auto-resize
           :placeholder="ticket.data.value.status === 'closed' ? '返信すると、新しいお問い合わせとして受け付けます。' : '担当者への返信'"
+        />
+        <AttachmentPicker
+          v-model="attachments"
+          :slug="slug"
         />
         <div class="actions">
           <Button

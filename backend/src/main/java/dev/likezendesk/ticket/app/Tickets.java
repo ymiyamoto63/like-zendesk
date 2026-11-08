@@ -39,6 +39,7 @@ public class Tickets {
     private final TicketEventRepository events;
     private final Directory directory;
     private final TicketNotifications notifications;
+    private final Attachments attachments;
     private final Clock clock;
 
     Tickets(
@@ -47,12 +48,14 @@ public class Tickets {
             TicketEventRepository events,
             Directory directory,
             TicketNotifications notifications,
+            Attachments attachments,
             Clock clock) {
         this.tickets = tickets;
         this.comments = comments;
         this.events = events;
         this.directory = directory;
         this.notifications = notifications;
+        this.attachments = attachments;
         this.clock = clock;
     }
 
@@ -64,7 +67,8 @@ public class Tickets {
             TicketType type,
             @Nullable UUID groupId,
             @Nullable UUID assigneeId,
-            List<String> tags) {}
+            List<String> tags,
+            List<UUID> attachmentIds) {}
 
     /** 項目の変更。{@code groupId} と {@code assigneeId} は、外す（null にする）ことと変えないことを区別する。 */
     public record Changes(
@@ -99,6 +103,7 @@ public class Tickets {
                 new Ref(requester.id().value(), requester.name()),
                 command.subject(),
                 command.body(),
+                command.attachmentIds(),
                 status,
                 command.priority(),
                 command.type(),
@@ -116,6 +121,7 @@ public class Tickets {
             Ref requester,
             String subject,
             String body,
+            List<UUID> attachmentIds,
             TicketStatus status,
             Priority priority,
             TicketType type,
@@ -141,6 +147,7 @@ public class Tickets {
                         followUpOf == null ? null : followUpOf.id()),
                 now);
         var commentId = comments.insert(viewer, id, author, body, true, now);
+        attachments.attach(viewer, attachmentIds, commentId);
         var created = new ArrayList<FieldChange>();
         var summary = new java.util.LinkedHashMap<String, Object>();
         summary.put("number", number);
@@ -208,7 +215,12 @@ public class Tickets {
     /** コメントを追加する（F-C-1）。{@code changes} があれば、同じ変更として項目も変える（F-C-3）。 */
     @Transactional
     public Commented comment(
-            Viewer.Staff viewer, long number, String body, boolean isPublic, @Nullable Changes changes) {
+            Viewer.Staff viewer,
+            long number,
+            String body,
+            boolean isPublic,
+            List<UUID> attachmentIds,
+            @Nullable Changes changes) {
         var ticket = changes == null ? lockAny(viewer, number) : lock(viewer, number, changes.version());
         if (ticket.status() == TicketStatus.CLOSED) {
             throw ApiException.rule("status.closed_is_final", "Closed tickets cannot be changed");
@@ -217,14 +229,21 @@ public class Tickets {
         var after = changes == null
                 ? ticket.apply(Ticket.Update.statusOnly(null), actor(viewer), now)
                 : apply(viewer, ticket, changes);
-        return addComment(viewer, ticket, after, body, isPublic);
+        return addComment(viewer, ticket, after, body, isPublic, attachmentIds);
     }
 
     /** ロック済みの {@code before} に、変更 {@code after} とコメントを 1 回の変更として書き、通知する。 */
-    Commented addComment(Viewer viewer, Ticket before, Ticket.Applied after, String body, boolean isPublic) {
+    Commented addComment(
+            Viewer viewer,
+            Ticket before,
+            Ticket.Applied after,
+            String body,
+            boolean isPublic,
+            List<UUID> attachmentIds) {
         var author = authorOf(viewer);
         var now = clock.instant();
         var commentId = comments.insert(viewer, before.id(), author, body, isPublic, now);
+        attachments.attach(viewer, attachmentIds, commentId);
         var all = new ArrayList<>(after.changes());
         all.add(commentEvent(commentId, isPublic));
         var touched = touch(after.ticket(), before, now);

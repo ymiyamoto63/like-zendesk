@@ -41,8 +41,8 @@ export function useRequestMutations(slug: string, number: number) {
   const refresh = () => client.invalidateQueries({ queryKey: ['portal', slug] })
   return {
     reply: useMutation({
-      mutationFn: (body: string) =>
-        unwrap(api.POST('/api/t/{slug}/portal/tickets/{number}/comments', { ...path, body: { body } })),
+      mutationFn: (body: components['schemas']['ReplyRequest']) =>
+        unwrap(api.POST('/api/t/{slug}/portal/tickets/{number}/comments', { ...path, body })),
       onSuccess: refresh,
     }),
     solve: useMutation({
@@ -55,7 +55,7 @@ export function useRequestMutations(slug: string, number: number) {
 export function useSubmitRequest(slug: string) {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: (body: { subject: string; body: string }) =>
+    mutationFn: (body: components['schemas']['NewRequestRequest']) =>
       unwrap(api.POST('/api/t/{slug}/portal/tickets', { params: { path: { slug } }, body })),
     onSuccess: () => client.invalidateQueries({ queryKey: ['portal', slug] }),
   })
