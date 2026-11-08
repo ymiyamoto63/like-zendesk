@@ -27,8 +27,40 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get_1"];
+        get: operations["get_2"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/admin/groups/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["replaceMembers"];
         post?: never;
         delete?: never;
         options?: never;
@@ -59,13 +91,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get"];
+        get: operations["get_1"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["update"];
+        patch: operations["update_1"];
         trace?: never;
     };
     "/api/t/{slug}/email-verifications": {
@@ -78,6 +110,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listGroups"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -196,6 +244,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/t/{slug}/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/tickets/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["update"];
+        trace?: never;
+    };
+    "/api/t/{slug}/tickets/{number}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["comments"];
+        put?: never;
+        post: operations["addComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/tickets/{number}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/t/{slug}/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tenants": {
         parameters: {
             query?: never;
@@ -220,9 +348,80 @@ export interface components {
             name: string;
             password: string;
         };
+        AddCommentRequest: {
+            body: string;
+            public: boolean;
+            ticket?: components["schemas"]["UpdateTicketRequest"];
+        };
+        ChangeSetResponse: {
+            actor: components["schemas"]["Named"] | null;
+            /** Format: uuid */
+            changeId: string;
+            changes: components["schemas"]["FieldChangeResponse"][];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CommentAdded: {
+            comment: components["schemas"]["CommentResponse"];
+            ticket: components["schemas"]["TicketResponse"];
+        };
+        CommentResponse: {
+            author: components["schemas"]["Named"];
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            public: boolean;
+        };
+        CreateGroupRequest: {
+            name: string;
+        };
+        CreateTicketRequest: {
+            /** Format: uuid */
+            assigneeId?: string;
+            body: string;
+            /** Format: uuid */
+            groupId?: string;
+            /**
+             * @default normal
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /** Format: uuid */
+            requesterId: string;
+            subject: string;
+            tags?: string[];
+            /**
+             * @default question
+             * @enum {string}
+             */
+            type: "question" | "incident" | "problem" | "task";
+        };
+        EventsResponse: {
+            items: components["schemas"]["ChangeSetResponse"][];
+        };
+        FieldChangeResponse: {
+            field: string;
+            /** @description 変更前の値。文字列、文字列の配列、{id, name} など項目による */
+            from: unknown;
+            /** @description 変更後の値 */
+            to: unknown;
+        };
         Group: {
             /** Format: uuid */
             id: string;
+            name: string;
+        };
+        GroupCreated: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        GroupResponse: {
+            /** Format: uuid */
+            id: string;
+            members: components["schemas"]["Member"][];
             name: string;
         };
         InvitationResponse: {
@@ -246,6 +445,19 @@ export interface components {
             name: string;
             /** @enum {string} */
             role: "requester" | "agent" | "admin";
+        };
+        Member: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        MembersRequest: {
+            userIds: string[];
+        };
+        Named: {
+            /** Format: uuid */
+            id: string;
+            name: string;
         };
         NewPasswordRequest: {
             password: string;
@@ -290,6 +502,72 @@ export interface components {
             requesterSignup: "open" | "domain_restricted";
             slug: string;
         };
+        TicketListResponse: {
+            items: components["schemas"]["TicketResponse"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        TicketResponse: {
+            assignee: components["schemas"]["Named"] | null;
+            /** Format: date-time */
+            closedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int64 */
+            followUpOf: number | null;
+            group: components["schemas"]["Named"] | null;
+            /** Format: int64 */
+            number: number;
+            /** @enum {string} */
+            priority: "low" | "normal" | "high" | "urgent";
+            requester: components["schemas"]["Named"];
+            /** Format: date-time */
+            solvedAt: string | null;
+            /** @enum {string} */
+            status: "new" | "open" | "pending" | "on_hold" | "solved" | "closed";
+            subject: string;
+            tags: string[];
+            /** @enum {string} */
+            type: "question" | "incident" | "problem" | "task";
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int32 */
+            version: number;
+        };
+        UpdateTicketRequest: {
+            /**
+             * Format: uuid
+             * @description null で担当者を外す。省略すると変えない
+             */
+            assigneeId?: string | null;
+            /**
+             * Format: uuid
+             * @description null で担当グループを外す。省略すると変えない
+             */
+            groupId?: string | null;
+            /** @enum {string} */
+            priority?: "low" | "normal" | "high" | "urgent";
+            /** @enum {string} */
+            status?: "new" | "open" | "pending" | "on_hold" | "solved" | "closed";
+            subject?: string;
+            tags?: string[];
+            /** @enum {string} */
+            type?: "question" | "incident" | "problem" | "task";
+            /** Format: int32 */
+            version: number;
+        };
+        UserSummary: {
+            email: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            role: "requester" | "agent" | "admin";
+        };
         VerifyRequest: {
             token: string;
         };
@@ -320,7 +598,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -339,6 +617,57 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TenantInfo"];
                 };
+            };
+        };
+    };
+    createGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupCreated"];
+                };
+            };
+        };
+    };
+    replaceMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembersRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -366,7 +695,7 @@ export interface operations {
             };
         };
     };
-    get: {
+    get_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -388,7 +717,7 @@ export interface operations {
             };
         };
     };
-    update: {
+    update_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -436,6 +765,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    listGroups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupResponse"][];
                 };
             };
         };
@@ -628,6 +979,205 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketListResponse"];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTicketRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketResponse"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketResponse"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTicketRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketResponse"];
+                };
+            };
+        };
+    };
+    comments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentResponse"][];
+                };
+            };
+        };
+    };
+    addComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddCommentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentAdded"];
+                };
+            };
+        };
+    };
+    events: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: number;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventsResponse"];
+                };
+            };
+        };
+    };
+    searchUsers: {
+        parameters: {
+            query?: {
+                role?: string;
+                q?: string;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserSummary"][];
+                };
             };
         };
     };

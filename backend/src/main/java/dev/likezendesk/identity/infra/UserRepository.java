@@ -124,6 +124,23 @@ public class UserRepository {
                 .update();
     }
 
+    /** 名前かメールアドレスの部分一致で探す。無効なユーザーは除く。名前順で最大 {@code limit} 件。 */
+    public List<UserAccount> search(Viewer.Staff viewer, @Nullable Role role, String query, int limit) {
+        var visible = UserVisibility.of(viewer, "u");
+        return jdbc.sql("SELECT " + COLUMNS + " FROM users u WHERE " + visible.sql()
+                        + " AND u.active AND (CAST(:role AS text) IS NULL OR u.role = :role)"
+                        + " AND (u.name ILIKE :pattern OR u.email ILIKE :pattern)"
+                        + " ORDER BY u.name, u.email LIMIT :limit")
+                .params(visible.params())
+                .param("role", role == null ? null : role.dbValue())
+                .param(
+                        "pattern",
+                        "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
+                .param("limit", limit)
+                .query(UserRepository::map)
+                .list();
+    }
+
     /** {@code id} のユーザーが所属するグループ。ユーザーが閲覧者に見えなければ空。 */
     public List<GroupRef> groupsOf(Viewer viewer, UserId id) {
         var visible = UserVisibility.of(viewer, "u");
