@@ -165,7 +165,7 @@ public class Tickets {
                         tags,
                         followUpOf == null ? null : followUpOf.id()),
                 now);
-        var commentId = comments.insert(viewer, id, author, body, true, now);
+        var commentId = comments.insert(viewer, id, author, body, true, now).orElseThrow(ApiException::notFound);
         attachments.attach(viewer, attachmentIds, commentId);
         var created = new ArrayList<FieldChange>();
         var summary = new java.util.LinkedHashMap<String, Object>();
@@ -261,7 +261,8 @@ public class Tickets {
             List<UUID> attachmentIds) {
         var author = authorOf(viewer);
         var now = clock.instant();
-        var commentId = comments.insert(viewer, before.id(), author, body, isPublic, now);
+        var commentId = comments.insert(viewer, before.id(), author, body, isPublic, now)
+                .orElseThrow(ApiException::notFound);
         attachments.attach(viewer, attachmentIds, commentId);
         var all = new ArrayList<>(after.changes());
         all.add(commentEvent(commentId, isPublic));

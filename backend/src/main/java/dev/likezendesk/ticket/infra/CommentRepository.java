@@ -7,6 +7,7 @@ import dev.likezendesk.ticket.domain.Ref;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -25,21 +26,25 @@ public class CommentRepository {
         this.attachments = attachments;
     }
 
-    /** {@code ticketId} のチケットは、呼び出し側が閲覧者に見えることを確かめてあること。 */
-    public UUID insert(Viewer viewer, UUID ticketId, UserId author, String body, boolean isPublic, Instant now) {
-        return jdbc.sql("""
+    /**
+     * コメントを書く。{@code ticketId} のチケットが閲覧者に見えなければ書かずに空を返す（呼び出し側の確認を当てにしない）。依頼者は公開コメントしか書けない。
+     */
+    public Optional<UUID> insert(
+            Viewer viewer, UUID ticketId, UserId author, String body, boolean isPublic, Instant now) {
+        if (!isPublic && viewer instanceof Viewer.Requester) {
+            throw new IllegalArgumentException("A requester cannot write an internal note");
+        }
+        return TicketScope.statement(jdbc, viewer, """
                         INSERT INTO comments (tenant_id, ticket_id, author_id, body, public, created_at)
-                        VALUES (:v_tenant, :ticket, :author, :body, :public, :now)
-                        RETURNING id
-                        """)
-                .param("v_tenant", viewer.tenantId().value())
+                        SELECT t.tenant_id, t.id, :author, :body, :public, :now FROM tickets t
+                        """, " AND t.id = :ticket RETURNING id")
                 .param("ticket", ticketId)
                 .param("author", author.value())
                 .param("body", body)
                 .param("public", isPublic)
                 .param("now", Timestamp.from(now))
                 .query(UUID.class)
-                .single();
+                .optional();
     }
 
     /** 古い順。依頼者には公開コメントだけを返す。添付つき。 */
