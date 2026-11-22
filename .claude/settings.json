@@ -5,9 +5,16 @@
         "source": "github",
         "repo": "michael-denyer/pstack-claude"
       }
+    },
+    "floorplan": {
+      "source": {
+        "source": "github",
+        "repo": "haydenschmitty/floorplan"
+      }
     }
   },
   "enabledPlugins": {
-    "pstack@pstack-claude": true
+    "pstack@pstack-claude": true,
+    "floorplan@floorplan": true
   }
 }
